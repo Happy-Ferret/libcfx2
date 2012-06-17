@@ -165,6 +165,22 @@ libcfx2 int cfx2_write( cfx2_Node* document, cfx2_IOutput* output )
     return error;
 }
 
+libcfx2 int cfx2_write_to_buffer( cfx2_Node* document, char** text, size_t* capacity, size_t* used )
+{
+    cfx2_IOutput* output;
+    int error;
+
+    if ( !document || !text || !capacity || !used )
+        return cfx2_param_invalid;
+
+    error = libcfx2_new_buffer_output( &output, text, capacity, used );
+
+    if ( error != cfx2_ok )
+        return error;
+
+    return cfx2_write( document, output );
+}
+
 libcfx2 int cfx2_save_document( cfx2_Node* document, const char* file_name )
 {
     cfx2_IOutput* output;

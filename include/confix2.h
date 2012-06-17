@@ -34,9 +34,9 @@ extern "C"
 
 #include <stdio.h>
 
-#define libcfx2_version 0.8
-#define libcfx2_version_string "0.8-dev"
-#define libcfx2_version_full "libcfx2 version " libcfx2_version_string
+#define libcfx2_version             0x0081
+#define libcfx2_version_string      "0.8.1"
+#define libcfx2_version_full        "libcfx2 version " libcfx2_version_string
 
 #ifndef libcfx2
 #define libcfx2
@@ -213,6 +213,7 @@ libcfx2 cfx2_Node* cfx2_load_document( const char* file_name );
 
 /* cfx2 writer */
 libcfx2 int cfx2_write( cfx2_Node* document, cfx2_IOutput* output );
+libcfx2 int cfx2_write_to_buffer( cfx2_Node* document, char** text, size_t* capacity, size_t* used );
 libcfx2 int cfx2_save_document( cfx2_Node* document, const char* file_name );
 
 /* cfx2 basic query language */

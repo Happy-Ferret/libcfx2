@@ -46,11 +46,23 @@ typedef struct
 }
 cfx2_FileOutput;
 
+/* Buffer Output */
+typedef struct
+{
+    cfx2_IOutput IOutput;
+
+    char** text;
+    size_t* capacity;
+    size_t* used;
+}
+cfx2_BufferOutput;
+
 /* Buffer Input - factory functions */
 int new_buffer_input_from_file( const char* file_name, cfx2_IInput** input );
 int new_buffer_input_from_string( const char* string, cfx2_IInput** input );
 
 /* File Output - factory functions */
 int new_file_output( const char* file_name, cfx2_IOutput** output );
+int libcfx2_new_buffer_output( cfx2_IOutput** output_ptr, char** text, size_t* capacity, size_t* used );
 
 #endif

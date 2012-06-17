@@ -29,6 +29,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* -------------------------------------------------------------------------- */
+/*  Buffer Input                                                              */
+/* -------------------------------------------------------------------------- */
+
 #define input ( ( cfx2_BufferInput* )input_ )
 
 static void BufferInput_finished( cfx2_IInput* input_ )
@@ -165,6 +169,10 @@ int new_buffer_input_from_string( const char* string, cfx2_IInput** input_ptr )
     return cfx2_ok;
 }
 
+/* -------------------------------------------------------------------------- */
+/*  File Output                                                               */
+/* -------------------------------------------------------------------------- */
+
 #define output ( ( cfx2_FileOutput* )output_ )
 
 static void FileOutput_finished( cfx2_IOutput* output_ )
@@ -210,6 +218,56 @@ int new_file_output( const char* file_name, cfx2_IOutput** output_ptr )
     }
 
     *output_ptr = ( cfx2_IOutput* )output;
+    return cfx2_ok;
+}
+
+#undef output
+
+/* -------------------------------------------------------------------------- */
+/*  Buffer Output                                                             */
+/* -------------------------------------------------------------------------- */
+
+#define output ( ( cfx2_BufferOutput* )output_ )
+
+static void BufferOutput_finished( cfx2_IOutput* output_ )
+{
+    libcfx2_free( output );
+}
+
+static size_t BufferOutput_write( cfx2_IOutput* output_, const void* input, size_t length )
+{
+    if ( *output->used + length > *output->capacity )
+    {
+        *output->capacity += length + 64;
+        *output->text = (char *) realloc( *output->text, *output->capacity );
+    }
+
+    memcpy( *output->text + *output->used, input, length );
+    *output->used += length;
+
+    return length;
+}
+
+#undef output
+
+int libcfx2_new_buffer_output( cfx2_IOutput** output_ptr, char** text, size_t* capacity, size_t* used )
+{
+    cfx2_BufferOutput* output;
+
+    output = ( cfx2_BufferOutput* )libcfx2_malloc( sizeof( cfx2_BufferOutput ) );
+
+    if ( !output )
+        return cfx2_alloc_error;
+
+    output->IOutput.finished =      &BufferOutput_finished;
+    output->IOutput.handle_error =  &FileOutput_handle_error;
+    output->IOutput.write =         &BufferOutput_write;
+
+    output->text = text;
+    output->capacity = capacity;
+    output->used = used;
+
+    *output_ptr = &output->IOutput;
     return cfx2_ok;
 }
 
