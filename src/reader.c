@@ -163,6 +163,8 @@ static cfx2_Node* node( ParseState* state, int min_indent )
 
                 if ( !get_token( state ) || state->token.type != T_text )
                 {
+                    cfx2_delete_attrib( attr );
+
                     state->lexer->input->handle_error( state->lexer->input, state->error = cfx2_syntax_error, state->lexer->line, "Expected attribute value after ':'." );
                     state->terminated = 1;
                     return my_node;
