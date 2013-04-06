@@ -1,0 +1,17 @@
+{ used in docquery, queries1 }
+
+Users
+    { password for root is: foobar }
+    root: 'System Administrator' (hasPassword: 1, passwordHash: 51, homeDir: '/root')
+
+    guest: 'Guest' (hasPassword: 0, homeDir: '/home/guest')
+
+    randuser1: 'Random User 1' (hasPassword: 1, passwordHash: 33, homeDir: '/home/randuser1')
+    randuser2: 'Random User 2' (hasPassword: 1, passwordHash: 33, homeDir: '/home/randuser2')
+    randuser3: 'Random User 3' (hasPassword: 1, passwordHash: 33, homeDir: '/home/randuser3')
+    randuser4: 'Random User 4' (hasPassword: 1, passwordHash: 33, homeDir: '/home/randuser4')
+    randuser5: 'Random User 5' (hasPassword: 1, passwordHash: 33, homeDir: '/home/randuser5')
+    randuser6: 'Random User 6' (hasPassword: 1, passwordHash: 33, homeDir: '/home/randuser6')
+    randuser7: 'Random User 7' (hasPassword: 1, passwordHash: 33, homeDir: '/home/randuser7')
+    randuser8: 'Random User 8' (hasPassword: 1, passwordHash: 33, homeDir: '/home/randuser8')
+    randuser9: 'Random User 9' (hasPassword: 1, passwordHash: 33, homeDir: '/home/randuser9')
