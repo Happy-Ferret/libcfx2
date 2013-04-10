@@ -101,14 +101,14 @@ typedef int cfx2_ResultType;
 #define cfx2_right_children_first   512
 
 /* Structures */
-typedef struct
+typedef struct cfx2_List
 {
     void** items;
     size_t capacity, length;
 }
 cfx2_List;
 
-typedef struct
+typedef struct cfx2_Mask
 {
     char* name;
     int piece_type;
@@ -123,7 +123,7 @@ typedef struct cfx2_Condition
 }
 cfx2_Condition;
 
-typedef struct
+typedef struct cfx2_Cmd
 {
     int op;
 
@@ -131,13 +131,13 @@ typedef struct
 }
 cfx2_Cmd;
 
-typedef struct
+typedef struct cfx2_Attrib
 {
     char* name, * value;
 }
 cfx2_Attrib;
 
-typedef struct
+typedef struct cfx2_Node
 {
     char* name, * text;
     cfx2_List* attributes, * children;
