@@ -35,7 +35,7 @@ static int attempt_login(cfx2_Node* user_table, const char* username, const char
         passwordHash = cfx2_query_value(user_table, query);
         tests_assert_2(passwordHash != NULL, query)
 
-        hash1 = strtoul(passwordHash, NULL, 0);
+        hash1 = (int) strtoul(passwordHash, NULL, 0);
         hash2 = hash_password(password);
 
         if (hash1 != hash2)

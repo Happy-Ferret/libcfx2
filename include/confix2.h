@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2010, 2011 Xeatheran Minexew
+    Copyright (c) 2010, 2011, 2013 Xeatheran Minexew
 
     This software is provided 'as-is', without any express or implied
     warranty. In no event will the authors be held liable for any damages
@@ -32,10 +32,10 @@ extern "C"
 /* original ...     2.1.09 */
 /* new ...          25.1.10 */
 
-#include <stdio.h>
+#include <stddef.h>
 
-#define libcfx2_version             0x0081
-#define libcfx2_version_string      "0.8.1"
+#define libcfx2_version             0x0082
+#define libcfx2_version_string      "0.8.2"
 #define libcfx2_version_full        "libcfx2 version " libcfx2_version_string
 
 #ifndef libcfx2
