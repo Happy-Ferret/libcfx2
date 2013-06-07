@@ -35,7 +35,7 @@ int cfx2_attrib_new( cfx2_Attrib** ptr, cfx2_Node* node )
 {
     cfx2_Attrib* attrib;
     
-    attrib = ( cfx2_Attrib* )list_add_item( &node->attributes, sizeof( cfx2_Attrib ) );
+    attrib = ( cfx2_Attrib* )cfx2_list_add_item( &node->attributes, sizeof( cfx2_Attrib ) );
     
     if ( attrib == NULL )
         return cfx2_alloc_error;
@@ -87,23 +87,20 @@ libcfx2 cfx2_Attrib* cfx2_find_attrib( cfx2_Node* node, const char* name )
     return 0;
 }
 
-/*libcfx2 int cfx2_remove_attrib( cfx2_Node* node, const char* name )
+libcfx2 int cfx2_remove_attrib( cfx2_Node* node, const char* name )
 {
     size_t i;
 
-    if ( node == NULL || name == NULL || name[0] == 0 )
-        return NULL;
-    
     for ( i = 0; i < cfx2_list_length( node->attributes ); i++ )
         if ( strcmp( cfx2_item( node->attributes, i, cfx2_Attrib ).name, name ) == 0 )
         {
-            cfx2_delete_attrib( ( cfx2_Attrib* )( node->attributes->items[i] ) );
-            list_remove( node->attributes, i );
+            cfx2_attrib_release( &cfx2_item( node->attributes, i, cfx2_Attrib ) );
+            cfx2_list_remove_at_index( &node->attributes, sizeof( cfx2_Attrib ), i );
             return cfx2_ok;
         }
 
     return cfx2_attrib_not_found;
-}*/
+}
 
 libcfx2 int cfx2_get_node_attrib( cfx2_Node* node, const char* name, const char** value )
 {

@@ -79,6 +79,34 @@ static void fixup_node( cfx2_Node* node, char* min, char* max, ptrdiff_t buf_dif
         fixup_attrib( &cfx2_item( node->attributes, i, cfx2_Attrib ), min, max, buf_diff );
 }
 
+static int release_node( cfx2_Node* node )
+{
+    unsigned i;
+
+    if ( !node )
+        return cfx2_param_invalid;
+
+    for ( i = 0; i < cfx2_list_length( node->attributes ); i++ )
+        cfx2_attrib_release( &cfx2_item( node->attributes, i, cfx2_Attrib ) );
+
+    cfx2_list_release( &node->attributes );
+
+    for ( i = 0; i < cfx2_list_length( node->children ); i++ )
+        release_node( cfx2_item( node->children, i, cfx2_Node* ) );
+
+    cfx2_list_release( &node->children );
+
+    if ( node->text )
+        cfx2_sfree( node->text );
+
+    cfx2_sfree( node->name );
+    
+    libcfx2_free( node->shared );
+    libcfx2_free( node );
+
+    return cfx2_ok;
+}
+
 int cfx2_alloc_shared( char** ptr, cfx2_Node* node, size_t size )
 {
     SharedHeader_t* sh;
@@ -165,8 +193,8 @@ libcfx2 int cfx2_create_node( cfx2_Node** node_ptr )
     node->name = NULL;
     node->text = NULL;
 
-    list_init( &node->children );
-    list_init( &node->attributes );
+    cfx2_list_init( &node->children );
+    cfx2_list_init( &node->attributes );
 
     node->shared = NULL;
     
@@ -185,6 +213,12 @@ libcfx2 cfx2_Node* cfx2_new_node( const char* name )
         cfx2_release_node( &node );
 
     return node;
+}
+
+libcfx2 void cfx2_release_node( cfx2_Node** node_ptr )
+{
+    release_node( *node_ptr );
+    *node_ptr = 0;
 }
 
 libcfx2 int cfx2_preallocate_shared_buffer( cfx2_Node* node, size_t size, int flags )
@@ -258,40 +292,6 @@ libcfx2 int cfx2_set_node_text( cfx2_Node* node, const char* text )
         return cfx2_salloc( &node->text, NULL, node, strlen( text ) + 1, text, cfx2_use_shared_buffer );
 
     return cfx2_ok;
-}
-
-static int cfx2_do_release_node( cfx2_Node* node )
-{
-    unsigned i;
-
-    if ( !node )
-        return cfx2_param_invalid;
-
-    for ( i = 0; i < cfx2_list_length( node->attributes ); i++ )
-        cfx2_attrib_release( &cfx2_item( node->attributes, i, cfx2_Attrib ) );
-
-    list_release( &node->attributes );
-
-    for ( i = 0; i < cfx2_list_length( node->children ); i++ )
-        cfx2_do_release_node( cfx2_item( node->children, i, cfx2_Node* ) );
-
-    list_release( &node->children );
-
-    if ( node->text )
-        cfx2_sfree( node->text );
-
-    cfx2_sfree( node->name );
-    
-    libcfx2_free( node->shared );
-    libcfx2_free( node );
-
-    return cfx2_ok;
-}
-
-libcfx2 void cfx2_release_node( cfx2_Node** node_ptr )
-{
-    cfx2_do_release_node( *node_ptr );
-    *node_ptr = 0;
 }
 
 libcfx2 cfx2_Node* cfx2_clone_node( cfx2_Node* node, int flags )

@@ -1,0 +1,29 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libcfx2", "libcfx2.vcxproj", "{DE5C8BFD-A62A-4828-80A3-218E69D735DD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug Testing|Win32 = Debug Testing|Win32
+		Debug|Win32 = Debug|Win32
+		Release DLL|Win32 = Release DLL|Win32
+		Release Testing|Win32 = Release Testing|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DE5C8BFD-A62A-4828-80A3-218E69D735DD}.Debug Testing|Win32.ActiveCfg = Debug Testing|Win32
+		{DE5C8BFD-A62A-4828-80A3-218E69D735DD}.Debug Testing|Win32.Build.0 = Debug Testing|Win32
+		{DE5C8BFD-A62A-4828-80A3-218E69D735DD}.Debug|Win32.ActiveCfg = Debug|Win32
+		{DE5C8BFD-A62A-4828-80A3-218E69D735DD}.Debug|Win32.Build.0 = Debug|Win32
+		{DE5C8BFD-A62A-4828-80A3-218E69D735DD}.Release DLL|Win32.ActiveCfg = Release DLL|Win32
+		{DE5C8BFD-A62A-4828-80A3-218E69D735DD}.Release DLL|Win32.Build.0 = Release DLL|Win32
+		{DE5C8BFD-A62A-4828-80A3-218E69D735DD}.Release Testing|Win32.ActiveCfg = Release Testing|Win32
+		{DE5C8BFD-A62A-4828-80A3-218E69D735DD}.Release Testing|Win32.Build.0 = Release Testing|Win32
+		{DE5C8BFD-A62A-4828-80A3-218E69D735DD}.Release|Win32.ActiveCfg = Release|Win32
+		{DE5C8BFD-A62A-4828-80A3-218E69D735DD}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

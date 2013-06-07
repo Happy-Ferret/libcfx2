@@ -36,12 +36,9 @@ static int ensure_enough_space( Lexer* lexer, unsigned int i )
 
         lexer->current_token.text = ( char* )libcfx2_realloc( lexer->current_token.text,
                 lexer->current_token_text_capacity );
-
-        if ( lexer->current_token.text == NULL )
-            return 0;
     }
 
-    return 1;
+    return lexer->current_token.text != NULL;
 }
 
 static int read_ident( Lexer* lexer, char next_char )

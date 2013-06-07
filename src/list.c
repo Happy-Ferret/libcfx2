@@ -54,7 +54,20 @@ static size_t round_up_to_power_of_2( size_t v )
     return v;
 }
 
-int list_init( cfx2_List* list )
+static int ensure_can_add( cfx2_List* list, itemsize_t itemsize )
+{
+    size_t capacity, new_capacity;
+
+    capacity = round_up_to_power_of_2( list->length * itemsize );
+    new_capacity = round_up_to_power_of_2( ( list->length + 1 ) * itemsize );
+    
+    if ( new_capacity > capacity )
+        list->items = ( cfx2_uint8_t* )realloc( list->items, new_capacity );
+
+    return list->items != NULL;
+}
+
+int cfx2_list_init( cfx2_List* list )
 {
     list->items = NULL;
     list->length = 0;
@@ -62,54 +75,43 @@ int list_init( cfx2_List* list )
     return 0;
 }
 
-void list_release( cfx2_List* list )
+void cfx2_list_release( cfx2_List* list )
 {
     libcfx2_free( list->items );
 }
 
-cfx2_uint8_t* list_add_item( cfx2_List* list, itemsize_t itemsize )
+cfx2_uint8_t* cfx2_list_add_item( cfx2_List* list, itemsize_t itemsize )
 {
-    size_t capacity, new_capacity;
     cfx2_uint8_t* ret;
-    
-    capacity = round_up_to_power_of_2( list->length * itemsize );
-    new_capacity = round_up_to_power_of_2( ( list->length + 1 ) * itemsize );
-    
-    if ( new_capacity > capacity )
-        list->items = ( cfx2_uint8_t* )realloc( list->items, new_capacity );
+
+    ensure_can_add( list, itemsize );
 
     ret = list->items + list->length * itemsize;
     list->length++;
     return ret;
 }
 
-/*
-void cfx2_list_insert( cfx2_List* list, size_t index, void* item )
+cfx2_uint8_t* cfx2_list_insert_item( cfx2_List* list, itemsize_t itemsize, size_t index )
 {
-    if ( !list )
-        return;
-
-    if ( list->capacity < list->length + 1 )
-    {
-        list->capacity = list->capacity * 2 + 1;
-        list->items = ( void** ) libcfx2_realloc( list->items, list->capacity * sizeof( cfx2_Node* ) );
-    }
-
+    cfx2_uint8_t* ret;
+    
     if ( index > list->length )
         index = list->length;
 
-    memmove( list->items + index + 1, list->items + index, ( list->length - index ) * sizeof( void* ) );
-    list->items[index] = item;
+    ensure_can_add( list, itemsize );
+
+    memmove( list->items + ( index + 1 ) * itemsize, list->items + index * itemsize, ( list->length - index ) * itemsize );
+    
+    ret = list->items + list->length * itemsize;
+    list->length++;
+    return ret;
 }
 
-int list_remove( cfx2_List* list, unsigned index )
+int cfx2_list_remove_at_index( cfx2_List* list, itemsize_t itemsize, size_t index )
 {
-    if ( !list )
-        return 0;
-
     if ( index < list->length )
     {
-        memmove( list->items + index, list->items + index + 1, ( list->length - index - 1 ) * sizeof( void* ) );
+        memmove( list->items + index * itemsize, list->items + ( index + 1 ) * itemsize, ( list->length - index - 1 ) * itemsize );
         list->length--;
 
         return 1;
@@ -118,17 +120,13 @@ int list_remove( cfx2_List* list, unsigned index )
     return 0;
 }
 
-int list_remove_item( cfx2_List* list, void* entry )
+int cfx2_list_remove_item( cfx2_List* list, itemsize_t itemsize, void* item )
 {
-    unsigned p;
-
-    if ( !list )
-        return 0;
+    size_t p;
 
     for ( p = 0; p < list->length; p++ )
-        if ( list->items[p] == entry )
+        if ( memcmp( list->items + p * itemsize, item, itemsize ) == 0 )
             break;
 
-    return list_remove( list, p );
+    return cfx2_list_remove_at_index( list, itemsize, p );
 }
-*/

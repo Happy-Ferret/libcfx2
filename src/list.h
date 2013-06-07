@@ -26,17 +26,14 @@
 
 #include <confix2.h>
 
-typedef unsigned short itemsize_t;
+typedef unsigned int itemsize_t;
 
-int list_init( cfx2_List* list );
-void list_release( cfx2_List* list );
+int cfx2_list_init( cfx2_List* list );
+void cfx2_list_release( cfx2_List* list );
 
-cfx2_uint8_t* list_add_item( cfx2_List* list, itemsize_t itemsize );
-
-/*
-void cfx2_list_insert( cfx2_List* list, size_t index, void* item );
-int list_remove( cfx2_List* list, unsigned index );
-int list_remove_item( cfx2_List* list, void* item );
- */
+cfx2_uint8_t* cfx2_list_add_item( cfx2_List* list, itemsize_t itemsize );
+cfx2_uint8_t* cfx2_list_insert_item( cfx2_List* list, itemsize_t itemsize, size_t index );
+int cfx2_list_remove_at_index( cfx2_List* list, itemsize_t itemsize, size_t index );
+int cfx2_list_remove_item( cfx2_List* list, itemsize_t itemsize, void* item );
 
 #endif

@@ -35,8 +35,8 @@ extern "C"
 
 #include <stddef.h>
 
-#define libcfx2_version             0x0090
-#define libcfx2_version_string      "0.9.0"
+#define libcfx2_version             0x0091
+#define libcfx2_version_string      "0.9.1"
 #define libcfx2_version_full        "libcfx2 version " libcfx2_version_string
 
 #ifndef libcfx2
@@ -159,32 +159,33 @@ libcfx2 const char* cfx2_get_error_desc( int error_code );
 libcfx2 int         cfx2_create_node( cfx2_Node** node );
 libcfx2 cfx2_Node*  cfx2_new_node( const char* name );
 libcfx2 void        cfx2_release_node( cfx2_Node** node_ptr );
+
+libcfx2 int         cfx2_preallocate_shared_buffer( cfx2_Node* node, size_t size, int flags );
 libcfx2 int         cfx2_rename_node( cfx2_Node* node, const char* name );
 libcfx2 int         cfx2_set_node_text( cfx2_Node* node, const char* text );
-libcfx2 int         cfx2_preallocate_shared_buffer( cfx2_Node* node, size_t size, int flags );
 
 libcfx2 cfx2_Node*  cfx2_clone_node( cfx2_Node* node, int flags );
-libcfx2 int         cfx2_merge_nodes( cfx2_Node* left, cfx2_Node* right, cfx2_Node** output_ptr, int flags );
+/*libcfx2 int         cfx2_merge_nodes( cfx2_Node* left, cfx2_Node* right, cfx2_Node** output_ptr, int flags );*/
 
 /* node attributes */
 libcfx2 cfx2_Attrib* cfx2_find_attrib( cfx2_Node* node, const char* name );
-/*libcfx2 int cfx2_remove_attrib( cfx2_Node* node, const char* name );*/
+libcfx2 int         cfx2_remove_attrib( cfx2_Node* node, const char* name );
 
-libcfx2 int cfx2_get_node_attrib( cfx2_Node*, const char* name, const char** value );
-libcfx2 int cfx2_get_node_attrib_int( cfx2_Node*, const char* name, long* value );
-libcfx2 int cfx2_get_node_attrib_float( cfx2_Node*, const char* name, double* value );
-libcfx2 int cfx2_set_node_attrib( cfx2_Node*, const char* name, const char* value );
-libcfx2 int cfx2_set_node_attrib_int( cfx2_Node*, const char* name, long value );
-libcfx2 int cfx2_set_node_attrib_float( cfx2_Node*, const char* name, double value );
+libcfx2 int         cfx2_get_node_attrib( cfx2_Node*, const char* name, const char** value );
+libcfx2 int         cfx2_get_node_attrib_int( cfx2_Node*, const char* name, long* value );
+libcfx2 int         cfx2_get_node_attrib_float( cfx2_Node*, const char* name, double* value );
+libcfx2 int         cfx2_set_node_attrib( cfx2_Node*, const char* name, const char* value );
+libcfx2 int         cfx2_set_node_attrib_int( cfx2_Node*, const char* name, long value );
+libcfx2 int         cfx2_set_node_attrib_float( cfx2_Node*, const char* name, double value );
 
 /* child nodes */
-libcfx2 int cfx2_add_child( cfx2_Node* parent, cfx2_Node* child );
-/*libcfx2 int cfx2_insert_child( cfx2_Node* parent, size_t index, cfx2_Node* child );*/
-libcfx2 cfx2_Node* cfx2_create_child( cfx2_Node* parent, const char* name, const char* text, cfx2_Uniqueness uniqueness );
-libcfx2 cfx2_Node* cfx2_find_child( cfx2_Node* parent, const char* name );
-libcfx2 cfx2_Node* cfx2_find_child_by_test( cfx2_Node* parent, cfx2_FindTest test, void* user );
-libcfx2 int cfx2_iterate_child_nodes( cfx2_Node* parent, cfx2_IterateCallback callback, void* user );
-/*libcfx2 int cfx2_remove_child( cfx2_Node* parent, cfx2_Node* child );*/
+libcfx2 int         cfx2_add_child( cfx2_Node* parent, cfx2_Node* child );
+libcfx2 int         cfx2_insert_child( cfx2_Node* parent, size_t index, cfx2_Node* child );
+libcfx2 cfx2_Node*  cfx2_create_child( cfx2_Node* parent, const char* name, const char* text, cfx2_Uniqueness uniqueness );
+libcfx2 cfx2_Node*  cfx2_find_child( cfx2_Node* parent, const char* name );
+libcfx2 cfx2_Node*  cfx2_find_child_by_test( cfx2_Node* parent, cfx2_FindTest test, void* user );
+libcfx2 int         cfx2_iterate_child_nodes( cfx2_Node* parent, cfx2_IterateCallback callback, void* user );
+libcfx2 int         cfx2_remove_child( cfx2_Node* parent, cfx2_Node* child );
 
 /* cfx2 reader */
 libcfx2 int         cfx2_read( cfx2_Node** doc_ptr, cfx2_RdOpt* rd_opt );
@@ -193,13 +194,13 @@ libcfx2 int         cfx2_read_from_string( cfx2_Node** doc_ptr, const char* docu
 libcfx2 cfx2_Node*  cfx2_load_document( const char* filename );
 
 /* cfx2 writer */
-libcfx2 int cfx2_write( cfx2_Node* doc, cfx2_WrOpt* wr_opt );
-libcfx2 int cfx2_write_to_buffer( cfx2_Node* doc, char** text, size_t* capacity, size_t* used );
-libcfx2 int cfx2_save_document( cfx2_Node* doc, const char* file_name );
+libcfx2 int         cfx2_write( cfx2_Node* doc, cfx2_WrOpt* wr_opt );
+libcfx2 int         cfx2_write_to_buffer( cfx2_Node* doc, char** text, size_t* capacity, size_t* used );
+libcfx2 int         cfx2_save_document( cfx2_Node* doc, const char* file_name );
 
 /* cfx2 basic query language */
 libcfx2 cfx2_ResultType cfx2_query( cfx2_Node* base, const char* command, int allow_modifications, void** output );
-libcfx2 cfx2_Node* cfx2_query_node( cfx2_Node* base, const char* command, int allow_modifications );
+libcfx2 cfx2_Node*  cfx2_query_node( cfx2_Node* base, const char* command, int allow_modifications );
 libcfx2 cfx2_Attrib* cfx2_query_attrib( cfx2_Node* base, const char* command, int allow_modifications );
 libcfx2 const char* cfx2_query_value( cfx2_Node* base, const char* command );
 
