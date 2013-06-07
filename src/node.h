@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2009, 2010, 2013 Xeatheran Minexew
+    Copyright (c) 2013 Xeatheran Minexew
 
     This software is provided 'as-is', without any express or implied
     warranty. In no event will the authors be held liable for any damages
@@ -21,41 +21,24 @@
     distribution.
 */
 
-#ifndef libcfx2_io_h
-#define libcfx2_io_h
+#ifndef libcfx2_node_h
+#define libcfx2_node_h
 
-#include <confix2.h>
-#include <stdio.h>
+#define cfx2_use_shared_buffer  1
 
-/* Buffer Input */
-typedef struct
+typedef unsigned int s_nref_t;
+
+typedef struct SharedHeader_t SharedHeader_t;
+
+struct SharedHeader_t
 {
-    cfx2_uint8_t* data;
-    size_t length, pos;
-}
-cfx2_BufferStreamPriv;
+    size_t capacity, used;
+};
 
-/* File Output */
-typedef struct
-{
-    FILE* file;
-    const char* filename;
-}
-cfx2_FileStreamPriv;
+int cfx2_salloc( char** ptr, cfx2_Node* parent, cfx2_Node* node, size_t size,
+        const char* initdata, int flags );
+void cfx2_sfree( char* chunk );
 
-/* Memory Output */
-typedef struct
-{
-    char** text;
-    size_t* capacity;
-    size_t* used;
-}
-cfx2_MemoryStreamPriv;
-
-int cfx2_buffer_stream_from_file( cfx2_RdOpt* rd_opt, const char* filename );
-int cfx2_buffer_stream_from_string( cfx2_RdOpt* rd_opt, const char* string );
-
-int cfx2_file_stream( cfx2_WrOpt* rd_opt, const char* filename );
-int cfx2_memory_stream( cfx2_WrOpt* rd_opt, char** text, size_t* capacity, size_t* used );
+int cfx2_alloc_shared( char** ptr, cfx2_Node* node, size_t size );
 
 #endif

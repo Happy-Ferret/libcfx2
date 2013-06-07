@@ -54,7 +54,7 @@ static int attempt_login(cfx2_Node* user_table, const char* username, const char
     return 1;
 }
 
-int queries1()
+int queries1(void)
 {
     cfx2_Node* user_table;
     tests_Perf perf;
@@ -63,7 +63,7 @@ int queries1()
 
     tests_perf_start(&perf);
 
-    rc = cfx2_read_file(usertable_filename, &user_table);
+    rc = cfx2_read_file(&user_table, usertable_filename, NULL);
 
     if (rc != cfx2_ok)
         tests_fail(("failed to load '%s': %i", usertable_filename, rc))
@@ -74,7 +74,7 @@ int queries1()
     tests_assert(attempt_login(user_table, "root", "foobar", "/root") == 1)
     tests_assert(attempt_login(user_table, "guest", "", "/home/guest") == 1)
 
-    cfx2_release_node_2(&user_table);
+    cfx2_release_node(&user_table);
 
     return 0;
 }

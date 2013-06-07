@@ -22,7 +22,7 @@ void generate_random_ascii(char* buffer, size_t size)
     buffer[i] = 0;
 }
 
-int gen_huge()
+int gen_huge(void)
 {
     cfx2_Node* doc;
     tests_Perf perf;
@@ -50,6 +50,8 @@ int gen_huge()
         child = cfx2_create_child(doc, name, text, cfx2_multiple);
         tests_assert(child != NULL)
 
+        cfx2_preallocate_shared_buffer(child, 3 * (sizeof(attrib_name) + sizeof(attrib_value) + 8), 0);
+
         for (j = 0; j < 3; j++)
         {
             generate_random_alphanum(attrib_name, sizeof(attrib_name));
@@ -70,7 +72,7 @@ int gen_huge()
 
     tests_perf_end(&perf, "save document to disk");
 
-    cfx2_release_node_2(&doc);
+    cfx2_release_node(&doc);
 
     return 0;
 }

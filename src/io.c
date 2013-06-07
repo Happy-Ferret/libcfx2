@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2009, 2010, 2011 Xeatheran Minexew
+    Copyright (c) 2009, 2010, 2011, 2013 Xeatheran Minexew
 
     This software is provided 'as-is', without any express or implied
     warranty. In no event will the authors be held liable for any damages
@@ -33,77 +33,71 @@
 /*  Buffer Input                                                              */
 /* -------------------------------------------------------------------------- */
 
-#define input ( ( cfx2_BufferInput* )input_ )
+#define input ( ( cfx2_BufferStreamPriv* )rd_opt->stream_priv )
 
-static void BufferInput_finished( cfx2_IInput* input_ )
+static int BufferStream_on_error( cfx2_RdOpt* rd_opt, int error_code, int line, const char* desc )
+{
+    printf( "libcfx2 Error %i: '%s'\n", error_code, desc );
+    printf( "  This error occured when parsing a cfx2 document.\n" );
+    
+    if ( rd_opt->client_priv != NULL )
+        printf( "    in file: %s\n", ( const char* )rd_opt->client_priv );
+    
+    if ( line >= 0 )
+        printf( "    at line: %i\n", line );
+    
+    printf( "    library: " libcfx2_version_full "\n" );
+    printf( "  Document reading failed.\n\n" );
+    
+    return 0;
+}
+
+static void BufferStream_stream_close( cfx2_RdOpt* rd_opt )
 {
     libcfx2_free( input->data );
     libcfx2_free( input );
 }
 
-static void BufferInput_handle_error( cfx2_IInput* input_, int error_code, int line, const char* desc )
+static size_t BufferStream_stream_read( cfx2_RdOpt* rd_opt, char* output, size_t length )
 {
-    printf( "libcfx2 Error %i: '%s'\n", error_code, desc );
-    printf( "  This error occured when parsing a cfx2 document.\n" );
-
-    if ( line >= 0 )
-        printf( "    at line: %i\n", line );
-
-    printf( "    library: " libcfx2_version_full "\n" );
-    printf( "  Document reading failed.\n\n" );
-}
-
-static int BufferInput_is_EOF( cfx2_IInput* input_ )
-{
-    return !input || input->position >= input->length;
-}
-
-static size_t BufferInput_read( cfx2_IInput* input_, void* output, size_t length )
-{
-    if ( !input || !output )
-        return 0;
-
-    if ( input->position + length <= input->length )
+    if ( input->pos + length <= input->length )
     {
         if ( output )
         {
             if ( length == 1 )
-                *( char* )output = input->data[input->position];
+                *output = input->data[input->pos];
             else
-                memcpy( output, input->data + input->position, length );
+                memcpy( output, input->data + input->pos, length );
         }
 
-        input->position += length;
+        input->pos += length;
         return length;
     }
     else
     {
         if ( output )
-            memcpy( output, input->data + input->position, input->length - input->position );
+            memcpy( output, input->data + input->pos, input->length - input->pos );
 
-        input->position = input->length;
-        return input->length - input->position;
+        input->pos = input->length;
+        return input->length - input->pos;
     }
 }
 
 #undef input
 
-int new_buffer_input_from_file( const char* file_name, cfx2_IInput** input_ptr )
+int cfx2_buffer_stream_from_file( cfx2_RdOpt* rd_opt, const char* filename )
 {
-    cfx2_BufferInput* input;
+    cfx2_BufferStreamPriv* input;
     FILE* file;
 
-    if ( !input_ptr )
-        return cfx2_param_invalid;
+    file = fopen( filename, "rb" );
 
-    file = fopen( file_name, "rb" );
-
-    if ( !file )
+    if ( file == NULL )
         return cfx2_cant_open_file;
 
-    input = ( cfx2_BufferInput* )libcfx2_malloc( sizeof( cfx2_BufferInput ) );
+    input = ( cfx2_BufferStreamPriv* )libcfx2_malloc( sizeof( cfx2_BufferStreamPriv ) );
 
-    if ( !input )
+    if ( input == NULL )
     {
         fclose( file );
         return cfx2_alloc_error;
@@ -113,7 +107,7 @@ int new_buffer_input_from_file( const char* file_name, cfx2_IInput** input_ptr )
     input->length = ftell( file );
     fseek( file, 0, SEEK_SET );
 
-    input->data = ( char* )libcfx2_malloc( input->length + 1 );
+    input->data = ( cfx2_uint8_t* )libcfx2_malloc( input->length + 1 );
 
     if ( !input->data )
     {
@@ -126,36 +120,28 @@ int new_buffer_input_from_file( const char* file_name, cfx2_IInput** input_ptr )
     input->data[input->length] = 0;
     fclose( file );
 
-    input->IInput.finished = &BufferInput_finished;
-    input->IInput.handle_error = &BufferInput_handle_error;
-    input->IInput.is_EOF = &BufferInput_is_EOF;
-    input->IInput.read = &BufferInput_read;
-    input->position = 0;
+    input->pos = 0;
+    
+    rd_opt->client_priv = NULL;
+    rd_opt->on_error = BufferStream_on_error;
+    rd_opt->stream_priv = input;
+    rd_opt->stream_read = BufferStream_stream_read;
+    rd_opt->stream_close = BufferStream_stream_close;
 
-    *input_ptr = ( cfx2_IInput* )input;
     return cfx2_ok;
 }
 
-int new_buffer_input_from_string( const char* string, cfx2_IInput** input_ptr )
+int cfx2_buffer_stream_from_string( cfx2_RdOpt* rd_opt, const char* string )
 {
-    cfx2_BufferInput* input;
+    cfx2_BufferStreamPriv* input;
 
-    if ( !input_ptr )
-        return cfx2_param_invalid;
-
-    input = ( cfx2_BufferInput* )libcfx2_malloc( sizeof( cfx2_BufferInput ) );
+    input = ( cfx2_BufferStreamPriv* )libcfx2_malloc( sizeof( cfx2_BufferStreamPriv ) );
 
     if ( !input )
         return cfx2_alloc_error;
 
-    input->IInput.finished = &BufferInput_finished;
-    input->IInput.handle_error = &BufferInput_handle_error;
-    input->IInput.is_EOF = &BufferInput_is_EOF;
-    input->IInput.read = &BufferInput_read;
     input->length = strlen( string );
-    input->position = 0;
-
-    input->data = ( char* )libcfx2_malloc( input->length + 1 );
+    input->data = ( cfx2_uint8_t* )libcfx2_malloc( input->length + 1 );
 
     if ( !input->data )
     {
@@ -165,7 +151,13 @@ int new_buffer_input_from_string( const char* string, cfx2_IInput** input_ptr )
 
     memcpy( input->data, string, input->length + 1 );
 
-    *input_ptr = ( cfx2_IInput* )input;
+    input->pos = 0;
+    
+    rd_opt->on_error = BufferStream_on_error;
+    rd_opt->stream_priv = input;
+    rd_opt->stream_read = BufferStream_stream_read;
+    rd_opt->stream_close = BufferStream_stream_close;
+    
     return cfx2_ok;
 }
 
@@ -173,43 +165,38 @@ int new_buffer_input_from_string( const char* string, cfx2_IInput** input_ptr )
 /*  File Output                                                               */
 /* -------------------------------------------------------------------------- */
 
-#define output ( ( cfx2_FileOutput* )output_ )
+#define output ( ( cfx2_FileStreamPriv* )wr_opt->stream_priv )
 
-static void FileOutput_finished( cfx2_IOutput* output_ )
+static int FileStream_on_error( cfx2_WrOpt* wr_opt, int rc, int line, const char* desc )
+{
+    printf( "libcfx2 Error %i: '%s'\n", rc, desc );
+    printf( "  This error occured during document serialization.\n" );
+    printf( "    library: " libcfx2_version_full "\n" );
+    printf( "  Document serialization will be interrupted.\n\n" );
+    
+    return 0;
+}
+
+static void FileStream_stream_close( cfx2_WrOpt* wr_opt )
 {
     fclose( output->file );
     libcfx2_free( output );
 }
 
-static void FileOutput_handle_error( cfx2_IOutput* output_, int error_code, const char* desc )
-{
-    printf( "libcfx2 Error %i: '%s'\n", error_code, desc );
-    printf( "  This error occured during document serialization.\n" );
-    printf( "    library: " libcfx2_version_full "\n" );
-    printf( "  Document serialization will be interrupted.\n\n" );
-}
-
-static size_t FileOutput_write( cfx2_IOutput* output_, const void* input, size_t length )
+static size_t FileStream_stream_write( cfx2_WrOpt* wr_opt, const char* input, size_t length )
 {
     return fwrite( input, 1, length, output->file );
 }
 
 #undef output
 
-int new_file_output( const char* file_name, cfx2_IOutput** output_ptr )
+int cfx2_file_stream( cfx2_WrOpt* wr_opt, const char* filename )
 {
-    cfx2_FileOutput* output;
+    cfx2_FileStreamPriv* output;
 
-    output = ( cfx2_FileOutput* )libcfx2_malloc( sizeof( cfx2_FileOutput ) );
+    output = ( cfx2_FileStreamPriv* )libcfx2_malloc( sizeof( cfx2_FileStreamPriv ) );
 
-    if ( !output )
-        return cfx2_alloc_error;
-
-    output->IOutput.finished = &FileOutput_finished;
-    output->IOutput.handle_error = &FileOutput_handle_error;
-    output->IOutput.write = &FileOutput_write;
-
-    output->file = fopen( file_name, "wt" );
+    output->file = fopen( filename, "wt" );
 
     if ( !output->file )
     {
@@ -217,29 +204,34 @@ int new_file_output( const char* file_name, cfx2_IOutput** output_ptr )
         return cfx2_cant_open_file;
     }
 
-    *output_ptr = ( cfx2_IOutput* )output;
+    wr_opt->client_priv = NULL;
+    wr_opt->on_error = FileStream_on_error;
+    wr_opt->stream_priv = output;
+    wr_opt->stream_close = FileStream_stream_close;
+    wr_opt->stream_write = FileStream_stream_write;
+    
     return cfx2_ok;
 }
 
 #undef output
 
 /* -------------------------------------------------------------------------- */
-/*  Buffer Output                                                             */
+/*  Memory Output                                                             */
 /* -------------------------------------------------------------------------- */
 
-#define output ( ( cfx2_BufferOutput* )output_ )
+#define output ( ( cfx2_MemoryStreamPriv* )wr_opt->stream_priv )
 
-static void BufferOutput_finished( cfx2_IOutput* output_ )
+static void MemoryStream_stream_close( cfx2_WrOpt* wr_opt )
 {
     libcfx2_free( output );
 }
 
-static size_t BufferOutput_write( cfx2_IOutput* output_, const void* input, size_t length )
+static size_t MemoryStream_stream_write( cfx2_WrOpt* wr_opt, const char* input, size_t length )
 {
     if ( *output->used + length > *output->capacity )
     {
         *output->capacity += length + 64;
-        *output->text = (char *) realloc( *output->text, *output->capacity );
+        *output->text = ( char* )realloc( *output->text, *output->capacity );
     }
 
     memcpy( *output->text + *output->used, input, length );
@@ -250,24 +242,25 @@ static size_t BufferOutput_write( cfx2_IOutput* output_, const void* input, size
 
 #undef output
 
-int libcfx2_new_buffer_output( cfx2_IOutput** output_ptr, char** text, size_t* capacity, size_t* used )
+int cfx2_memory_stream( cfx2_WrOpt* wr_opt, char** text, size_t* capacity, size_t* used )
 {
-    cfx2_BufferOutput* output;
+    cfx2_MemoryStreamPriv* output;
 
-    output = ( cfx2_BufferOutput* )libcfx2_malloc( sizeof( cfx2_BufferOutput ) );
+    output = ( cfx2_MemoryStreamPriv* )libcfx2_malloc( sizeof( cfx2_MemoryStreamPriv ) );
 
     if ( !output )
         return cfx2_alloc_error;
-
-    output->IOutput.finished =      &BufferOutput_finished;
-    output->IOutput.handle_error =  &FileOutput_handle_error;
-    output->IOutput.write =         &BufferOutput_write;
 
     output->text = text;
     output->capacity = capacity;
     output->used = used;
 
-    *output_ptr = &output->IOutput;
+    wr_opt->client_priv = NULL;
+    wr_opt->on_error = FileStream_on_error;
+    wr_opt->stream_priv = output;
+    wr_opt->stream_write = MemoryStream_stream_write;
+    wr_opt->stream_close = MemoryStream_stream_close;
+
     return cfx2_ok;
 }
 

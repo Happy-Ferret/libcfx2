@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2010, 2011 Xeatheran Minexew
+    Copyright (c) 2010, 2011, 2013 Xeatheran Minexew
 
     This software is provided 'as-is', without any express or implied
     warranty. In no event will the authors be held liable for any damages
@@ -30,50 +30,51 @@
 
 static char err_desc_buffer[200];
 
-static void write_string( const char* text, cfx2_IOutput* output )
+static void write_string( const char* text, cfx2_WrOpt* wr_opt )
 {
-    output->write( output, text, strlen( text ) );
+    wr_opt->stream_write( wr_opt, text, strlen( text ) );
 }
 
-static void write_string_safe( const char* text, cfx2_IOutput* output )
+static void write_string_safe( const char* text, cfx2_WrOpt* wr_opt )
 {
     const static char apo = '\'', esc = '\\';
 
-    output->write( output, &apo, 1 );
+    wr_opt->stream_write( wr_opt, &apo, 1 );
 
     while ( *text )
     {
         if ( *text == apo || *text == esc )
-            output->write( output, &esc, 1 );
+            wr_opt->stream_write( wr_opt, &esc, 1 );
 
-        output->write( output, text, 1 );
+        wr_opt->stream_write( wr_opt, text, 1 );
         text++;
     }
 
-    output->write( output, &apo, 1 );
+    wr_opt->stream_write( wr_opt, &apo, 1 );
 }
 
-static void write_string_escaped( const char* text, cfx2_IOutput* output )
+static void write_string_escaped( const char* text, cfx2_WrOpt* wr_opt )
 {
     const char* text2;
 
     for ( text2 = text; *text2; text2++ )
         if ( !is_ident_char( *text2 ) )
         {
-            write_string_safe( text, output );
+            write_string_safe( text, wr_opt );
             return;
         }
 
-    write_string( text, output );
+    write_string( text, wr_opt );
 }
 
-static int write_node( cfx2_Node* node, unsigned depth, cfx2_IOutput* output, cfx2_Node* parent, int is_last )
+static int write_node( cfx2_Node* node, unsigned depth, cfx2_WrOpt* wr_opt,
+        cfx2_Node* parent, int is_last )
 {
     unsigned i;
-    int error;
+    int rc;
 
     for ( i = 0; i < depth; i++ )
-        output->write( output, "  ", 2 );
+        wr_opt->stream_write( wr_opt, "  ", 2 );
 
     if ( !node->name || !node->name[0] )
     {
@@ -81,118 +82,104 @@ static int write_node( cfx2_Node* node, unsigned depth, cfx2_IOutput* output, cf
         libcfx2_snprintf( err_desc_buffer, sizeof( err_desc_buffer ) / sizeof( *err_desc_buffer ),
                 "Node name empty or not specified. Parent node: %s%s%s", parent ? "`" : "", parent ? parent->name : "document root", parent ? "`" : "" );
 
-        output->handle_error( output, cfx2_missing_node_name, err_desc_buffer );
+        wr_opt->on_error( wr_opt, cfx2_missing_node_name, -1, err_desc_buffer );
         return cfx2_missing_node_name;
     }
     else
     {
-        write_string_escaped( node->name, output );
+        write_string_escaped( node->name, wr_opt );
 
         if ( node->text )
         {
-            write_string( ": ", output );
-            write_string_safe( node->text, output );
+            write_string( ": ", wr_opt );
+            write_string_safe( node->text, wr_opt );
         }
 
-        if ( node->attributes->length > 0 )
+        if ( cfx2_list_length( node->attributes ) > 0 )
         {
-            write_string( " (", output );
-            for ( i = 0; i < node->attributes->length; i++ )
+            write_string( " (", wr_opt );
+            for ( i = 0; i < cfx2_list_length( node->attributes ); i++ )
             {
-                write_string_escaped( ( ( cfx2_Attrib* )node->attributes->items[i] )->name, output );
+                write_string_escaped( cfx2_item( node->attributes, i, cfx2_Attrib ).name, wr_opt );
 
-                if ( ( ( cfx2_Attrib* )node->attributes->items[i] )->value )
+                /* FIXME: This must be asserted */
+                if ( cfx2_item( node->attributes, i, cfx2_Attrib ).value != NULL )
                 {
-                    write_string( ": ", output );
-                    write_string_safe( ( ( cfx2_Attrib* )node->attributes->items[i] )->value, output );
+                    write_string( ": ", wr_opt );
+                    write_string_safe( cfx2_item( node->attributes, i, cfx2_Attrib ).value, wr_opt );
                 }
 
-                if ( i + 1 < node->attributes->length )
-                    write_string( ", ", output );
+                if ( i + 1 < cfx2_list_length( node->attributes ) )
+                    write_string( ", ", wr_opt );
             }
-            write_string( ")", output );
+            write_string( ")", wr_opt );
         }
 
-        write_string( "\n", output );
+        write_string( "\n", wr_opt );
 
         for ( i = 0; i < cfx2_list_length( node->children ); i++ )
         {
-            error = write_node( cfx2_item( node->children, i, cfx2_Node* ), depth + 1, output, node, i >= cfx2_list_length( node->children ) - 1 );
+            rc = write_node( cfx2_item( node->children, i, cfx2_Node* ), depth + 1, wr_opt, node, i >= cfx2_list_length( node->children ) - 1 );
 
-            if ( error != cfx2_ok )
-                return error;
+            if ( rc != 0 )
+                return rc;
         }
 
         if ( depth == 0 && !is_last )
-            write_string( "\n", output );
+            write_string( "\n", wr_opt );
     }
 
     return cfx2_ok;
 }
 
-static int write_top_node( cfx2_Node* document, cfx2_IOutput* output )
+static int write_top_node( cfx2_WrOpt* wr_opt, cfx2_Node* doc )
 {
     unsigned i;
-    int error;
+    int rc;
 
-    for ( i = 0; i < cfx2_list_length( document->children ); i++ )
+    for ( i = 0; i < cfx2_list_length( doc->children ); i++ )
     {
-        error = write_node( cfx2_item( document->children, i, cfx2_Node* ), 0, output, 0, i >= cfx2_list_length( document->children ) - 1 );
+        rc = write_node( cfx2_item( doc->children, i, cfx2_Node* ), 0, wr_opt, 0, i >= cfx2_list_length( doc->children ) - 1 );
 
-        if ( error != cfx2_ok )
-            return error;
+        if ( rc != 0 )
+            return rc;
     }
 
     return cfx2_ok;
 }
 
-libcfx2 int cfx2_write( cfx2_Node* document, cfx2_IOutput* output )
+libcfx2 int cfx2_write( cfx2_Node* doc, cfx2_WrOpt* wr_opt )
 {
-    int error;
+    int rc;
 
-    if ( !output )
-        return cfx2_param_invalid;
-
-    if ( !document )
-    {
-        output->finished( output );
-        return cfx2_param_invalid;
-    }
-
-    error = write_top_node( document, output );
-    output->finished( output );
-
-    return error;
+    rc = write_top_node( wr_opt, doc );
+    wr_opt->stream_close( wr_opt );
+ 
+    return rc;
 }
 
-libcfx2 int cfx2_write_to_buffer( cfx2_Node* document, char** text, size_t* capacity, size_t* used )
+libcfx2 int cfx2_write_to_buffer( cfx2_Node* doc, char** text, size_t* capacity, size_t* used )
 {
-    cfx2_IOutput* output;
-    int error;
+    cfx2_WrOpt wr_opt;
+    int rc;
 
-    if ( !document || !text || !capacity || !used )
-        return cfx2_param_invalid;
+    rc = cfx2_memory_stream( &wr_opt, text, capacity, used );
 
-    error = libcfx2_new_buffer_output( &output, text, capacity, used );
+    if ( rc != 0 )
+        return rc;
 
-    if ( error != cfx2_ok )
-        return error;
-
-    return cfx2_write( document, output );
+    return cfx2_write( doc, &wr_opt );
 }
 
-libcfx2 int cfx2_save_document( cfx2_Node* document, const char* file_name )
+libcfx2 int cfx2_save_document( cfx2_Node* doc, const char* filename )
 {
-    cfx2_IOutput* output;
-    int error;
+    cfx2_WrOpt wr_opt;
+    int rc;
 
-    if ( !document || !file_name )
-        return cfx2_param_invalid;
+    rc = cfx2_file_stream( &wr_opt, filename );
 
-    error = new_file_output( file_name, &output );
+    if ( rc != 0 )
+        return rc;
 
-    if ( error != cfx2_ok )
-        return error;
-
-    return cfx2_write( document, output );
+    return cfx2_write( doc, &wr_opt );
 }

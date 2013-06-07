@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2009, 2010, 2011 Xeatheran Minexew
+    Copyright (c) 2009, 2010, 2011, 2013 Xeatheran Minexew
 
     This software is provided 'as-is', without any express or implied
     warranty. In no event will the authors be held liable for any damages
@@ -21,8 +21,8 @@
     distribution.
 */
 
-#ifndef __libcfx2_lexer_h__
-#define __libcfx2_lexer_h__
+#ifndef libcfx2_lexer_h
+#define libcfx2_lexer_h
 
 #include "io.h"
 
@@ -64,17 +64,20 @@ Token;
 
 typedef struct
 {
-    cfx2_IInput* input;
+    cfx2_RdOpt* rd_opt;
     unsigned line;
     char queued_char;
 
     Token current_token;
+
+    int current_token_is_valid;
+    size_t current_token_text_capacity;
 }
 Lexer;
 
-int new_lexer( cfx2_IInput*, Lexer** lexer_ptr );
-int lexer_read( Lexer* lexer, Token* token );
-int lexer_get_current( Lexer* lexer, Token* token );
+int create_lexer( Lexer** lexer_ptr, cfx2_RdOpt* rd_opt );
+int lexer_read( Lexer* lexer, Token** token_out );
+int lexer_get_current( Lexer* lexer, Token** token_out );
 int lexer_token_is( Lexer* lexer, int token_type );
 void lexer_delete_token( Token* );
 int delete_lexer( Lexer* lexer );

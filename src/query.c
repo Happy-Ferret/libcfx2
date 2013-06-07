@@ -3,15 +3,16 @@
 #include "config.h"
 #include "lexer.h"
 #include "list.h"
+#include "node.h"
 
 #include <confix2.h>
 #include <stdlib.h>
 #include <string.h>
 
 /* TODO: this could really use some documentation because of the function's recursiveness */
-/* TODO: review the attribute handling (possibly get rid of #include "attrib.h") */
 
-static cfx2_ResultType attrib_process_command( cfx2_Node* base, const char* command, char* buffer, int allow_modifications, void** output )
+static cfx2_ResultType attrib_process_command( cfx2_Node* base, const char* command,
+        char* buffer, int allow_modifications, void** output )
 {
     unsigned pos = 0;
     cfx2_Attrib* attrib;
@@ -40,9 +41,17 @@ static cfx2_ResultType attrib_process_command( cfx2_Node* base, const char* comm
     {
         if ( allow_modifications )
         {
-            cfx2_new_attrib( &attrib, buffer );
-            cfx2_set_attrib_value( attrib, "" );
-            list_add( base->attributes, attrib );
+            int rc;
+            
+            rc = cfx2_attrib_new( &attrib, base );
+            
+            if ( rc != 0 )
+                return cfx2_fail;
+            
+            rc = cfx2_salloc( &attrib->name, base, NULL, strlen( buffer ) + 1, buffer, cfx2_use_shared_buffer );
+            
+            if ( rc != 0 )
+                return rc;
         }
         else
             return cfx2_fail;
@@ -60,7 +69,7 @@ static cfx2_ResultType attrib_process_command( cfx2_Node* base, const char* comm
     }
     else if ( *command == ':' && allow_modifications )
     {
-        cfx2_set_attrib_value( attrib, command + 1 );
+        cfx2_attrib_set_value( attrib, command + 1 );
 
         if ( output )
         {
@@ -146,7 +155,8 @@ static cfx2_ResultType process_command( cfx2_Node* base, const char* command, ch
         return cfx2_fail;
 }
 
-libcfx2 cfx2_ResultType cfx2_query( cfx2_Node* base, const char* command, int allow_modifications, void** output )
+libcfx2 cfx2_ResultType cfx2_query( cfx2_Node* base, const char* command,
+        int allow_modifications, void** output )
 {
     char* buffer;
     cfx2_ResultType type;

@@ -34,7 +34,7 @@
 #define tests_DEBUG
 #endif
 
-typedef int (*tests_TestFunc)();
+typedef int (*tests_TestFunc)(void);
 
 typedef struct
 {
@@ -54,13 +54,13 @@ tests_Perf;
 #define tests_info(error_) { printf("#### %s:\t", tests_get_current_name()); printf error_; printf("\n"); }
 #define tests_fail(error_) { printf("#### %s:\tTEST FAILED:\t", tests_get_current_name()); printf error_; printf("\n\n"); exit(-1); }
 
-const char*     tests_get_current_name();
-void            tests_memory_usage_check();
+const char*     tests_get_current_name(void);
+void            tests_memory_usage_check(void);
 void            tests_print_node_recursive(cfx2_Node* node);
 
 void            tests_perf_start(tests_Perf* perf);
 void            tests_perf_end(tests_Perf* perf, const char* desc);
 
-void tests_parse_error( cfx2_IInput* input_, int error_code, int line, const char* desc );
+int tests_parse_error( cfx2_RdOpt* rd_opt, int rc, int line, const char* desc );
 
 #endif

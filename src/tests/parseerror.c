@@ -1,8 +1,6 @@
 
 #include "tests.h"
 
-#include "../io.h"
-
 static const char* filenames[] =
 {
     "damaged1.cfx2",
@@ -12,7 +10,7 @@ static const char* filenames[] =
     NULL
 };
 
-int parseerror()
+int parseerror(void)
 {
     const char** p_filename;
     int rc;
@@ -22,16 +20,12 @@ int parseerror()
     for (p_filename = &filenames[0]; *p_filename != NULL; p_filename++)
     {
         cfx2_Node* doc;
-        cfx2_IInput* input;
+        cfx2_RdOpt rd_opt;
+        
+        rd_opt.on_error = &tests_parse_error;
+        rd_opt.flags = 0;
 
-        rc = new_buffer_input_from_file( *p_filename, &input );
-
-        if (rc)
-            tests_fail(("failed to load document '%s'", *p_filename))
-
-        input->handle_error = &tests_parse_error;
-
-        rc = cfx2_read( input, &doc );
+        rc = cfx2_read_file( &doc, *p_filename, &rd_opt );
 
         if (rc == cfx2_ok)
             tests_fail(("loaded corrupted document '%s'", *p_filename))

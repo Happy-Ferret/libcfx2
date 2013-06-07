@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2009, 2010 Xeatheran Minexew
+    Copyright (c) 2009, 2010, 2013 Xeatheran Minexew
 
     This software is provided 'as-is', without any express or implied
     warranty. In no event will the authors be held liable for any damages
@@ -28,45 +28,62 @@
 #include <stdlib.h>
 #include <string.h>
 
-cfx2_List* new_list()
+/* warning C4127: conditional expression is constant */
+/* warning C4293: '>>' : shift count negative or too big, undefined behavior */
+/* (only triggers in unreachable code) */
+#pragma warning( disable : 4127 )
+#pragma warning( disable : 4293 )
+
+/*
+ *  http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
+ */
+static size_t round_up_to_power_of_2( size_t v )
 {
-    cfx2_List* list = ( cfx2_List* )libcfx2_malloc( sizeof( cfx2_List ) );
+    v--;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    
+    if (sizeof(v) >= 8)
+        v |= v >> 32;
+    
+    v++;
+    
+    return v;
+}
 
-    if ( !list )
-        return 0;
-
-    list->capacity = 0;
-    list->items = 0;
+int list_init( cfx2_List* list )
+{
+    list->items = NULL;
     list->length = 0;
 
-    return list;
+    return 0;
 }
 
-libcfx2 void cfx2_release_list( cfx2_List* list )
+void list_release( cfx2_List* list )
 {
-    if ( !list )
-        return;
-
-    if ( list->items )
-        libcfx2_free( list->items );
-
-    libcfx2_free( list );
+    libcfx2_free( list->items );
 }
 
-void list_add( cfx2_List* list, void* item )
+cfx2_uint8_t* list_add_item( cfx2_List* list, itemsize_t itemsize )
 {
-    if ( !list )
-        return;
+    size_t capacity, new_capacity;
+    cfx2_uint8_t* ret;
+    
+    capacity = round_up_to_power_of_2( list->length * itemsize );
+    new_capacity = round_up_to_power_of_2( ( list->length + 1 ) * itemsize );
+    
+    if ( new_capacity > capacity )
+        list->items = ( cfx2_uint8_t* )realloc( list->items, new_capacity );
 
-    if ( list->capacity < list->length + 1 )
-    {
-        list->capacity = list->capacity * 2 + 1;
-        list->items = ( void** ) libcfx2_realloc( list->items, list->capacity * sizeof( cfx2_Node* ) );
-    }
-
-    list->items[list->length++] = item;
+    ret = list->items + list->length * itemsize;
+    list->length++;
+    return ret;
 }
 
+/*
 void cfx2_list_insert( cfx2_List* list, size_t index, void* item )
 {
     if ( !list )
@@ -114,3 +131,4 @@ int list_remove_item( cfx2_List* list, void* entry )
 
     return list_remove( list, p );
 }
+*/

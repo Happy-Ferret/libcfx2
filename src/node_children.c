@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2009, 2010 Xeatheran Minexew
+    Copyright (c) 2009, 2010, 2013 Xeatheran Minexew
 
     This software is provided 'as-is', without any express or implied
     warranty. In no event will the authors be held liable for any damages
@@ -30,16 +30,18 @@
 
 libcfx2 int cfx2_add_child( cfx2_Node* parent, cfx2_Node* child )
 {
-    if ( !parent || !child )
-        return cfx2_param_invalid;
+    cfx2_Node** p_child;
 
-    if ( !parent->children )
-        parent->children = new_list();
+    p_child = ( cfx2_Node** )list_add_item( &parent->children, sizeof( cfx2_Node* ) );
+    
+    if ( p_child == NULL )
+        return cfx2_alloc_error;
 
-    list_add( parent->children, child );
+    *p_child = child;
     return cfx2_ok;
 }
 
+/*
 libcfx2 int cfx2_insert_child( cfx2_Node* parent, size_t index, cfx2_Node* child )
 {
     if ( !parent || !child )
@@ -51,24 +53,27 @@ libcfx2 int cfx2_insert_child( cfx2_Node* parent, size_t index, cfx2_Node* child
     cfx2_list_insert( parent->children, index, child );
     return cfx2_ok;
 }
+*/
 
 libcfx2 cfx2_Node* cfx2_create_child( cfx2_Node* parent, const char* name, const char* text, cfx2_Uniqueness uniqueness )
 {
-    cfx2_Node* child = 0;
+    cfx2_Node* child;
 
-    if ( !parent || uniqueness > 1 )
-        return 0;
+    if ( uniqueness > 1 )
+        return NULL;
 
     if ( uniqueness != cfx2_multiple )
         child = cfx2_find_child( parent, name );
+    else
+        child = NULL;
 
-    if ( !child )
+    if ( child == NULL )
     {
         child = cfx2_new_node( name );
         cfx2_add_child( parent, child );
     }
 
-    if ( text )
+    if ( text != NULL )
         cfx2_set_node_text( child, text );
 
     return child;
@@ -76,53 +81,43 @@ libcfx2 cfx2_Node* cfx2_create_child( cfx2_Node* parent, const char* name, const
 
 libcfx2 cfx2_Node* cfx2_find_child_by_test( cfx2_Node* parent, cfx2_FindTest test, void* user )
 {
-    unsigned i;
+    size_t i;
 
-    if ( !parent || !parent->children || !test )
-       return 0;
+    for ( i = 0; i < cfx2_list_length( parent->children ); i++ )
+        if ( test( i, cfx2_item( parent->children, i, cfx2_Node* ), parent, user ) == 0 )
+            return cfx2_item( parent->children, i, cfx2_Node* );
 
-    for ( i = 0; i < parent->children->length; i++ )
-        if ( test( i, ( cfx2_Node* )parent->children->items[i], parent, user ) == 0 )
-            return parent->children->items[i];
-
-    return 0;
+    return NULL;
 }
 
 libcfx2 cfx2_Node* cfx2_find_child( cfx2_Node* parent, const char* name )
 {
-    unsigned i;
+    size_t i;
 
-    if ( !parent || !parent->children || !name )
-       return 0;
+    for ( i = 0; i < cfx2_list_length( parent->children ); i++ )
+        if ( strcmp( cfx2_item( parent->children, i, cfx2_Node* )->name, name ) == 0 )
+            return cfx2_item( parent->children, i, cfx2_Node* );
 
-    for ( i = 0; i < parent->children->length; i++ )
-        if ( strcmp( ( ( cfx2_Node* )parent->children->items[i] )->name, name ) == 0 )
-            return parent->children->items[i];
-
-    return 0;
+    return NULL;
 }
 
 libcfx2 int cfx2_iterate_child_nodes( cfx2_Node* parent, cfx2_IterateCallback callback, void* user )
 {
-    unsigned i;
+    size_t i;
 
-    if ( !parent || !parent->children )
-       return cfx2_param_invalid;
-
-    for ( i = 0; i < parent->children->length; i++ )
-        if ( callback( i, ( cfx2_Node* )parent->children->items[i], parent, user ) == cfx2_stop )
+    for ( i = 0; i < cfx2_list_length( parent->children ); i++ )
+        if ( callback( i, cfx2_item( parent->children, i, cfx2_Node* ), parent, user ) == cfx2_stop )
             return cfx2_interrupted;
 
     return cfx2_ok;
 }
 
+/*
 libcfx2 int cfx2_remove_child( cfx2_Node* parent, cfx2_Node* child )
 {
-    if ( !parent || !child )
-       return cfx2_param_invalid;
-
     if ( parent->children && list_remove_item( parent->children, child ) )
         return cfx2_ok;
     else
         return cfx2_node_not_found;
 }
+*/

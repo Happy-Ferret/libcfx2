@@ -32,17 +32,15 @@
 #include <crtdbg.h>
 #endif
 
-int docquery();
-int gen_huge();
-int parseerror();
-int parse_huge();
-int queries1();
+int gen_huge(void);
+int parseerror(void);
+int parse_huge(void);
+int queries1(void);
 
 static const tests_Case testcases[] =
 {
 #define entry(name_) { #name_, &name_ }
 
-    entry(docquery),
     entry(gen_huge),
     entry(parseerror),
     entry(parse_huge),
@@ -73,28 +71,28 @@ static void print_node( cfx2_Node* node, unsigned int depth )
 
     printf( " (" );
 
-    for ( i = 0; i < node->attributes->length; i++ )
+    for ( i = 0; i < cfx2_list_length( node->attributes ); i++ )
     {
-        cfx2_Attrib* attrib = ( cfx2_Attrib* )node->attributes->items[i];
+        cfx2_Attrib* attrib = &cfx2_item( node->attributes, i, cfx2_Attrib );
         printf( "'%s': '%s'", attrib->name, attrib->value );
 
-        if ( i + 1 < node->attributes->length )
+        if ( i + 1 < cfx2_list_length( node->attributes ) )
             printf( ", " );
     }
 
     printf( ")\n" );
 
     if ( cfx2_has_children( node ) )
-        for ( i = 0; i < node->children->length; i++ )
-            print_node( ( cfx2_Node* )node->children->items[i], depth + 1 );
+        for ( i = 0; i < cfx2_list_length( node->children ); i++ )
+            print_node( cfx2_item( node->children, i, cfx2_Node* ), depth + 1 );
 }
 
-const char* tests_get_current_name()
+const char* tests_get_current_name(void)
 {
     return current->name;
 }
 
-void tests_memory_usage_check()
+void tests_memory_usage_check(void)
 {
     if (memory_usage_check_enabled)
     {
@@ -104,9 +102,10 @@ void tests_memory_usage_check()
     }
 }
 
-void tests_parse_error( cfx2_IInput* input_, int error_code, int line, const char* desc )
+int tests_parse_error( cfx2_RdOpt* rd_opt, int rc, int line, const char* desc )
 {
     printf( "line %i: %s\n", line, desc );
+    return 0;
 }
 
 void tests_perf_start(tests_Perf* perf)

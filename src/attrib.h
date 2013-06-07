@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2011 Xeatheran Minexew
+    Copyright (c) 2011, 2013 Xeatheran Minexew
 
     This software is provided 'as-is', without any express or implied
     warranty. In no event will the authors be held liable for any damages
@@ -21,16 +21,14 @@
     distribution.
 */
 
-#ifndef __libcfx2_attrib_h__
-#define __libcfx2_attrib_h__
+#ifndef libcfx2_attrib_h
+#define libcfx2_attrib_h
 
 #include <confix2.h>
 
-/* TODO: sth like cfx2_add_attrib( name, value ) ? */
+int cfx2_attrib_new( cfx2_Attrib** ptr, cfx2_Node* node );
+void cfx2_attrib_release( cfx2_Attrib* attrib );
 
-int cfx2_add_attrib( cfx2_Node* node, cfx2_Attrib* attrib );
-int cfx2_new_attrib( cfx2_Attrib** attrib_ptr, const char* name );
-int cfx2_set_attrib_value( cfx2_Attrib*, const char* value );
-int cfx2_delete_attrib( cfx2_Attrib* );
+int cfx2_attrib_set_value( cfx2_Attrib* attrib, const char* value );
 
 #endif

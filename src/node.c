@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2009, 2010, 2011 Xeatheran Minexew
+    Copyright (c) 2009, 2010, 2011, 2013 Xeatheran Minexew
 
     This software is provided 'as-is', without any express or implied
     warranty. In no event will the authors be held liable for any damages
@@ -24,49 +24,152 @@
 #include "attrib.h"
 #include "config.h"
 #include "list.h"
+#include "node.h"
 
 #include <confix2.h>
 #include <stdlib.h>
 #include <string.h>
 
-libcfx2 int cfx2_create_node( const char* name, cfx2_Node** node_ptr )
+/* warning C4127: conditional expression is constant */
+/* warning C4293: '>>' : shift count negative or too big, undefined behavior */
+/* (only triggers in unreachable code) */
+#pragma warning( disable : 4127 )
+#pragma warning( disable : 4293 )
+
+/*
+ *  http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
+ */
+static size_t round_up_to_power_of_2( size_t v )
+{
+    v--;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    
+    if (sizeof(v) >= 8)
+        v |= v >> 32;
+    
+    v++;
+    
+    return v;
+}
+
+static void fixup_attrib( cfx2_Attrib* attr, char* min, char* max, ptrdiff_t buf_diff )
+{
+    if ( attr->name >= min && attr->name <= max )
+        attr->name += buf_diff;
+
+    if ( attr->value >= min && attr->value <= max )
+        attr->value += buf_diff;
+}
+
+static void fixup_node( cfx2_Node* node, char* min, char* max, ptrdiff_t buf_diff )
+{
+    size_t i;
+
+    if ( node->name >= min && node->name <= max )
+        node->name += buf_diff;
+
+    if ( node->text >= min && node->text <= max )
+        node->text += buf_diff;
+
+    for ( i = 0; i < cfx2_list_length( node->attributes ); i++ )
+        fixup_attrib( &cfx2_item( node->attributes, i, cfx2_Attrib ), min, max, buf_diff );
+}
+
+int cfx2_alloc_shared( char** ptr, cfx2_Node* node, size_t size )
+{
+    SharedHeader_t* sh;
+    int rc;
+    
+    if ( node->shared == NULL )
+        if ( ( rc = cfx2_preallocate_shared_buffer( node, size, 0 ) ) != 0 )
+            return rc;
+    
+    sh = ( SharedHeader_t* )node->shared;
+        
+    if ( sh->used + size > sh->capacity )
+        return cfx2_alloc_error;
+
+    *ptr = node->shared + sizeof( SharedHeader_t ) + sh->used;
+    sh->used += size;
+    return 0;
+}
+
+int cfx2_salloc( char** ptr, cfx2_Node* parent, cfx2_Node* node, size_t size,
+                const char* initdata, int flags )
+{
+    char* chunk;
+    
+    chunk = NULL;
+    size += sizeof( s_nref_t );
+    
+    if ( flags & cfx2_use_shared_buffer )
+    {
+        chunk = NULL;
+        
+        if ( parent != NULL )
+            cfx2_alloc_shared( &chunk, parent, size );
+        else
+            cfx2_alloc_shared( &chunk, node, size );
+        
+        if ( chunk != NULL )
+            *( s_nref_t* )chunk = 0;
+    }
+    
+    if ( chunk == NULL )
+    {
+        chunk = ( char* ) libcfx2_malloc( size );
+        
+        if ( chunk == NULL )
+            return cfx2_alloc_error;
+        
+        *( s_nref_t* )chunk = 1;
+    }
+    
+    chunk += sizeof( s_nref_t );
+    size -= sizeof( s_nref_t );
+    
+    if ( initdata != NULL )
+        memcpy( chunk, initdata, size );
+    
+    *ptr = chunk;
+    return 0;
+}
+
+void cfx2_sfree( char* chunk )
+{
+    if ( chunk == NULL )
+        return;
+    
+    chunk -= sizeof( s_nref_t );
+    
+    if ( *( s_nref_t* )chunk == 0 )
+        return;
+        
+    if ( --( *( s_nref_t* )chunk ) == 0 )
+        libcfx2_free( chunk );
+}
+
+libcfx2 int cfx2_create_node( cfx2_Node** node_ptr )
 {
     cfx2_Node* node;
-
-    if ( !node_ptr )
-        return cfx2_param_invalid;
 
     node = ( cfx2_Node* )libcfx2_malloc( sizeof( cfx2_Node ) );
 
     if ( !node )
         return cfx2_alloc_error;
 
-    if ( name )
-    {
-        node->name = ( char* )libcfx2_malloc( strlen( name ) + 1 );
+    node->name = NULL;
+    node->text = NULL;
 
-        if ( !node->name )
-        {
-            libcfx2_free( node );
-            return cfx2_alloc_error;
-        }
+    list_init( &node->children );
+    list_init( &node->attributes );
 
-        strcpy( node->name, name );
-    }
-    else
-        node->name = 0;
-
-    node->text = 0;
-
-    node->children = 0;
-    node->attributes = new_list();
-
-    if ( !node->attributes )
-    {
-        cfx2_release_node( node );
-        return cfx2_alloc_error;
-    }
-
+    node->shared = NULL;
+    
     *node_ptr = node;
     return cfx2_ok;
 }
@@ -75,106 +178,123 @@ libcfx2 cfx2_Node* cfx2_new_node( const char* name )
 {
     cfx2_Node* node;
 
-    if ( cfx2_create_node( name, &node ) == cfx2_ok )
-        return node;
+    if ( cfx2_create_node( &node ) != 0 )
+        return NULL;
+    
+    if ( cfx2_rename_node( node, name ) != 0 )
+        cfx2_release_node( &node );
+
+    return node;
+}
+
+libcfx2 int cfx2_preallocate_shared_buffer( cfx2_Node* node, size_t size, int flags )
+{
+    SharedHeader_t* sh;
+    char* new_shared;
+    size_t capacity;
+
+    if ( node->shared != NULL )
+    {
+        sh = ( SharedHeader_t* )node->shared;
+
+        if ( size < sh->capacity )
+            return cfx2_param_invalid;
+    }
+
+    if ( size < 16 )
+        capacity = 16;
     else
-        return 0;
+        capacity = round_up_to_power_of_2( size );
+        
+    new_shared = ( char* )libcfx2_malloc( sizeof( SharedHeader_t ) + capacity );
+        
+    if ( new_shared == NULL )
+        return cfx2_alloc_error;
+        
+    if ( node->shared != NULL )
+    {
+        ptrdiff_t buf_diff;
+
+        memcpy( new_shared, node->shared, sizeof( SharedHeader_t ) + sh->used );
+
+        buf_diff = new_shared - node->shared;
+        fixup_node( node, node->shared, node->shared + sh->capacity, buf_diff );
+
+        libcfx2_free( node->shared );
+    }
+
+    node->shared = new_shared;
+
+    sh = ( SharedHeader_t* )new_shared;
+    sh->capacity = capacity;
+    sh->used = 0;
+
+    return 0;
 }
 
 libcfx2 int cfx2_rename_node( cfx2_Node* node, const char* name )
 {
-    if ( !node )
-        return cfx2_param_invalid;
-
-    if ( node->name )
+    if ( node->name != NULL )
     {
-        libcfx2_free( node->name );
-        node->name = 0;
+        cfx2_sfree( node->name );
+        node->name = NULL;
     }
 
-    if ( name )
-    {
-        node->name = ( char* )libcfx2_malloc( strlen( name ) + 1 );
-
-        if ( !node->name )
-            return cfx2_alloc_error;
-
-        strcpy( node->name, name );
-    }
+    if ( name != NULL )
+        return cfx2_salloc( &node->name, NULL, node, strlen( name ) + 1, name, cfx2_use_shared_buffer );
 
     return cfx2_ok;
 }
 
 libcfx2 int cfx2_set_node_text( cfx2_Node* node, const char* text )
 {
-    if ( !node )
-        return cfx2_param_invalid;
-
-    if ( node->text )
+    if ( node->text != NULL )
     {
-        libcfx2_free( node->text );
-        node->text = 0;
+        cfx2_sfree( node->text );
+        node->text = NULL;
     }
 
-    if ( text )
-    {
-        node->text = ( char* )libcfx2_malloc( strlen( text ) + 1 );
-
-        if ( !node->text )
-            return cfx2_alloc_error;
-
-        strcpy( node->text, text );
-    }
+    if ( text != NULL )
+        return cfx2_salloc( &node->text, NULL, node, strlen( text ) + 1, text, cfx2_use_shared_buffer );
 
     return cfx2_ok;
 }
 
-libcfx2 int cfx2_release_node( cfx2_Node* node )
+static int cfx2_do_release_node( cfx2_Node* node )
 {
     unsigned i;
 
     if ( !node )
         return cfx2_param_invalid;
 
-    if ( node->attributes )
-    {
-        for ( i = 0; i < node->attributes->length; i++ )
-            cfx2_delete_attrib( ( cfx2_Attrib* )node->attributes->items[i] );
+    for ( i = 0; i < cfx2_list_length( node->attributes ); i++ )
+        cfx2_attrib_release( &cfx2_item( node->attributes, i, cfx2_Attrib ) );
 
-        cfx2_release_list( node->attributes );
-    }
+    list_release( &node->attributes );
 
-    if ( node->children )
-    {
-        for ( i = 0; i < node->children->length; i++ )
-            cfx2_release_node( ( cfx2_Node* )node->children->items[i] );
+    for ( i = 0; i < cfx2_list_length( node->children ); i++ )
+        cfx2_do_release_node( cfx2_item( node->children, i, cfx2_Node* ) );
 
-        cfx2_release_list( node->children );
-    }
+    list_release( &node->children );
 
     if ( node->text )
-        libcfx2_free( node->text );
+        cfx2_sfree( node->text );
 
-    libcfx2_free( node->name );
+    cfx2_sfree( node->name );
+    
+    libcfx2_free( node->shared );
     libcfx2_free( node );
 
     return cfx2_ok;
 }
 
-libcfx2 int cfx2_release_node_2( cfx2_Node** node_ptr )
+libcfx2 void cfx2_release_node( cfx2_Node** node_ptr )
 {
-    int error;
-
-    if ( !node_ptr )
-        return cfx2_param_invalid;
-
-    error = cfx2_release_node( *node_ptr );
+    cfx2_do_release_node( *node_ptr );
     *node_ptr = 0;
-
-    return error;
 }
 
-libcfx2 cfx2_Node* cfx2_clone_node( cfx2_Node* node )
+libcfx2 cfx2_Node* cfx2_clone_node( cfx2_Node* node, int flags )
 {
     cfx2_Node* clone;
     size_t i;
@@ -182,13 +302,16 @@ libcfx2 cfx2_Node* cfx2_clone_node( cfx2_Node* node )
     if ( !node )
         return 0;
 
-    if ( cfx2_create_node( node->name, &clone ) != cfx2_ok )
+    if ( cfx2_create_node( &clone ) != 0 )
         return 0;
 
-    if ( cfx2_set_node_text( clone, node->text ) != cfx2_ok )
+    /* TODO: Use shared buffer */
+
+    if ( cfx2_rename_node( clone, node->name ) != 0
+            || cfx2_set_node_text( clone, node->text ) != 0 )
     {
-        cfx2_release_node_2( &clone );
-        return 0;
+        cfx2_release_node( &clone );
+        return NULL;
     }
 
     for ( i = 0; i < cfx2_list_length( node->attributes ); i++ )
@@ -200,92 +323,20 @@ libcfx2 cfx2_Node* cfx2_clone_node( cfx2_Node* node )
         cfx2_set_node_attrib( clone, attrib->name, attrib->value );
     }
 
-    for ( i = 0; i < cfx2_list_length( node->children ); i++ )
-        cfx2_add_child( clone, cfx2_clone_node( cfx2_item( node->children, i, cfx2_Node* ) ) );
+    if ( flags & cfx2_clone_recursive )
+    {
+        for ( i = 0; i < cfx2_list_length( node->children ); i++ )
+            cfx2_add_child( clone, cfx2_clone_node( cfx2_item( node->children, i, cfx2_Node* ), flags ) );
+    }
 
     return clone;
 }
 
-libcfx2 cfx2_Node* cfx2_join_nodes( cfx2_Node* left, cfx2_Node* right )
-{
-    cfx2_Node* joint;
-    size_t i;
-
-    if ( !left || !right )
-        return 0;
-
-    if ( cfx2_create_node( left->name, &joint ) != cfx2_ok )
-        return 0;
-
-    if ( cfx2_set_node_text( joint, left->text ) != cfx2_ok )
-    {
-        cfx2_release_node_2( &joint );
-        return 0;
-    }
-
-    for ( i = 0; i < cfx2_list_length( left->attributes ); i++ )
-    {
-        cfx2_Attrib* attrib;
-
-        attrib = cfx2_item( left->attributes, i, cfx2_Attrib* );
-
-        cfx2_set_node_attrib( joint, attrib->name, attrib->value );
-    }
-
-    for ( i = 0; i < cfx2_list_length( right->attributes ); i++ )
-    {
-        cfx2_Attrib* attrib;
-
-        attrib = cfx2_item( right->attributes, i, cfx2_Attrib* );
-
-        /* Check for duplicate attributes */
-        if ( cfx2_find_attrib( joint, attrib->name ) != 0 )
-            cfx2_set_node_attrib( joint, attrib->name, attrib->value );
-    }
-
-    for ( i = 0; i < cfx2_list_length( left->children ); i++ )
-        cfx2_add_child( joint, cfx2_clone_node( cfx2_item( left->children, i, cfx2_Node* ) ) );
-
-    for ( i = 0; i < cfx2_list_length( right->children ); i++ )
-        cfx2_add_child( joint, cfx2_clone_node( cfx2_item( right->children, i, cfx2_Node* ) ) );
-
-    return joint;
-}
-
-libcfx2 cfx2_Node* cfx2_merge_nodes( cfx2_Node* left, cfx2_Node* right )
-{
-    if ( !left || !right || left == right )
-        return 0;
-
-    while ( cfx2_list_length( right->attributes ) > 0 )
-    {
-        cfx2_Attrib* attrib;
-
-        attrib = cfx2_item( right->attributes, 0, cfx2_Attrib* );
-
-        /* Check for duplicate attributes */
-        if ( cfx2_find_attrib( left, attrib->name ) != 0 )
-            list_add( left->attributes, attrib );
-        else
-            cfx2_delete_attrib( attrib );
-
-        list_remove( right->attributes, 0 );
-    }
-
-    while ( cfx2_has_children( right ) )
-    {
-        cfx2_add_child( left, cfx2_item( right->children, 0, cfx2_Node* ) );
-        list_remove( right->children, 0 );
-    }
-
-    cfx2_release_node_2( &right );
-    return left;
-}
-
-libcfx2 int cfx2_merge_nodes_2( cfx2_Node* left, cfx2_Node* right, cfx2_Node** output_ptr, int flags )
+#if 0
+libcfx2 int cfx2_merge_nodes( cfx2_Node* left, cfx2_Node* right, cfx2_Node** output_ptr, int flags )
 {
     cfx2_Node* merged;
-    int error;
+    int rc;
     size_t i;
 
     if ( left == right )
@@ -339,12 +390,12 @@ libcfx2 int cfx2_merge_nodes_2( cfx2_Node* left, cfx2_Node* right, cfx2_Node** o
         /* Use left's name unless required to do otherwise */
 
         if ( !( flags & cfx2_name_from_right ) )
-            error = cfx2_create_node( left->name, &merged );
+            rc = cfx2_create_node( left->name, &merged );
         else
-            error = cfx2_create_node( right->name, &merged );
+            rc = cfx2_create_node( right->name, &merged );
 
-        if ( error )
-            return error;
+        if ( rc )
+            return rc;
 
         if ( !( flags & cfx2_text_from_right ) )
             cfx2_set_node_text( merged, left->text );
@@ -524,3 +575,4 @@ libcfx2 int cfx2_merge_nodes_2( cfx2_Node* left, cfx2_Node* right, cfx2_Node** o
     *output_ptr = merged;
     return cfx2_ok;
 }
+#endif

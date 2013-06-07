@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2010 Xeatheran Minexew
+    Copyright (c) 2010, 2013 Xeatheran Minexew
 
     This software is provided 'as-is', without any express or implied
     warranty. In no event will the authors be held liable for any damages
@@ -21,60 +21,45 @@
     distribution.
 */
 
+#include "attrib.h"
 #include "config.h"
 #include "list.h"
+#include "node.h"
 
 #include <confix2.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-int cfx2_add_attrib( cfx2_Node* node, cfx2_Attrib* attrib )
-{
-    if ( !node )
-        return cfx2_param_invalid;
-
-    if ( !node->attributes )
-        node->attributes = new_list();
-
-    list_add( node->attributes, attrib );
-    return cfx2_ok;
-}
-
-int cfx2_new_attrib( cfx2_Attrib** attrib_ptr, const char* name )
+int cfx2_attrib_new( cfx2_Attrib** ptr, cfx2_Node* node )
 {
     cfx2_Attrib* attrib;
-
-    if ( !name || !name[0] )
-        return cfx2_param_invalid;
-
-    attrib = ( cfx2_Attrib* )libcfx2_malloc( sizeof( cfx2_Attrib ) );
-
-    if ( !attrib )
+    
+    attrib = ( cfx2_Attrib* )list_add_item( &node->attributes, sizeof( cfx2_Attrib ) );
+    
+    if ( attrib == NULL )
         return cfx2_alloc_error;
-
-    attrib->name = ( char* )libcfx2_malloc( strlen( name ) + 1 );
-    attrib->value = 0;
-
-    if ( !attrib->name )
-    {
-        libcfx2_free( attrib );
-        return cfx2_alloc_error;
-    }
-
-    strcpy( attrib->name, name );
-
-    *attrib_ptr = attrib;
-    return cfx2_ok;
+    
+    attrib->name = NULL;
+    attrib->value = NULL;
+    
+    *ptr = attrib;
+    return 0;
 }
 
-int cfx2_set_attrib_value( cfx2_Attrib* attrib, const char* value )
+void cfx2_attrib_release( cfx2_Attrib* attrib )
+{
+    cfx2_sfree( attrib->name );
+    cfx2_sfree( attrib->value );
+}
+
+int cfx2_attrib_set_value( cfx2_Attrib* attrib, const char* value )
 {
     if ( !attrib )
         return cfx2_param_invalid;
 
     if ( attrib->value )
-        libcfx2_free( attrib->value );
+        cfx2_sfree( attrib->value );
 
     if ( value )
     {
@@ -91,44 +76,26 @@ int cfx2_set_attrib_value( cfx2_Attrib* attrib, const char* value )
     return cfx2_ok;
 }
 
-int cfx2_delete_attrib( cfx2_Attrib* attrib )
-{
-    if ( !attrib )
-        return cfx2_param_invalid;
-
-    libcfx2_free( attrib->name );
-    libcfx2_free( attrib->value );
-    libcfx2_free( attrib );
-
-    return cfx2_ok;
-}
-
 libcfx2 cfx2_Attrib* cfx2_find_attrib( cfx2_Node* node, const char* name )
 {
-    unsigned i;
+    size_t i;
 
-    if ( !node || !node->attributes || !name || !name[0] )
-       return 0;
-
-    for ( i = 0; i < node->attributes->length; i++ )
-        if ( strcmp( ( ( cfx2_Attrib* )( node->attributes->items[i] ) )->name, name ) == 0 )
-            return ( cfx2_Attrib* )( node->attributes->items[i] );
+    for ( i = 0; i < cfx2_list_length( node->attributes ); i++ )
+        if ( strcmp( cfx2_item( node->attributes, i, cfx2_Attrib ).name, name ) == 0 )
+            return &cfx2_item( node->attributes, i, cfx2_Attrib );
 
     return 0;
 }
 
-libcfx2 int cfx2_remove_attrib( cfx2_Node* node, const char* name )
+/*libcfx2 int cfx2_remove_attrib( cfx2_Node* node, const char* name )
 {
-    unsigned i;
+    size_t i;
 
-    if ( !node || !name || !name[0] )
-       return cfx2_param_invalid;
-
-    if ( !node->attributes )
-        return cfx2_attrib_not_found;
-
-    for ( i = 0; i < node->attributes->length; i++ )
-        if ( strcmp( ( ( cfx2_Attrib* )( node->attributes->items[i] ) )->name, name ) == 0 )
+    if ( node == NULL || name == NULL || name[0] == 0 )
+        return NULL;
+    
+    for ( i = 0; i < cfx2_list_length( node->attributes ); i++ )
+        if ( strcmp( cfx2_item( node->attributes, i, cfx2_Attrib ).name, name ) == 0 )
         {
             cfx2_delete_attrib( ( cfx2_Attrib* )( node->attributes->items[i] ) );
             list_remove( node->attributes, i );
@@ -136,7 +103,7 @@ libcfx2 int cfx2_remove_attrib( cfx2_Node* node, const char* name )
         }
 
     return cfx2_attrib_not_found;
-}
+}*/
 
 libcfx2 int cfx2_get_node_attrib( cfx2_Node* node, const char* name, const char** value )
 {
@@ -144,7 +111,7 @@ libcfx2 int cfx2_get_node_attrib( cfx2_Node* node, const char* name, const char*
 
     attrib = cfx2_find_attrib( node, name );
 
-    if ( attrib != 0 && attrib->value )
+    if ( attrib != NULL && attrib->value != NULL )
     {
         *value = attrib->value;
         return cfx2_ok;
@@ -159,7 +126,7 @@ libcfx2 int cfx2_get_node_attrib_int( cfx2_Node* node, const char* name, long* v
 
     attrib = cfx2_find_attrib( node, name );
 
-    if ( attrib != 0 && attrib->value )
+    if ( attrib != NULL && attrib->value != NULL )
     {
         *value = strtol( attrib->value, 0, 0 );
         return cfx2_ok;
@@ -174,7 +141,7 @@ libcfx2 int cfx2_get_node_attrib_float( cfx2_Node* node, const char* name, doubl
 
     attrib = cfx2_find_attrib( node, name );
 
-    if ( attrib != 0 && attrib->value )
+    if ( attrib != NULL && attrib->value != NULL )
     {
         *value = strtod( attrib->value, 0 );
         return cfx2_ok;
@@ -186,30 +153,31 @@ libcfx2 int cfx2_get_node_attrib_float( cfx2_Node* node, const char* name, doubl
 libcfx2 int cfx2_set_node_attrib( cfx2_Node* node, const char* name, const char* value )
 {
     cfx2_Attrib* attrib;
+    int rc;
 
     attrib = cfx2_find_attrib( node, name );
 
-    if ( attrib )
-        return cfx2_set_attrib_value( attrib, value );
-    else
-    {
-        int err;
+    if ( attrib != NULL )
+        return cfx2_attrib_set_value( attrib, value );
 
-        if ( !node || !name || !name[0] )
-            return cfx2_param_invalid;
+    rc = cfx2_attrib_new( &attrib, node );
 
-        err = cfx2_new_attrib( &attrib, name );
+    if ( rc != 0 )
+        return rc;
 
-        if ( err )
-            return err;
+    /* FIXME: Further returns leave unitialized attribute */
+    
+    rc = cfx2_salloc( &attrib->name, NULL, node, strlen( name ) + 1, name, cfx2_use_shared_buffer );
+    
+    if ( rc != 0 )
+        return rc;
+    
+    rc = cfx2_salloc( &attrib->value, NULL, node, strlen( value ) + 1, value, cfx2_use_shared_buffer );
 
-        err = cfx2_set_attrib_value( attrib, value );
+    if ( rc != 0 )
+        return rc;
 
-        if ( err )
-            return err;
-
-        return cfx2_add_attrib( node, attrib );
-    }
+    return 0;
 }
 
 libcfx2 int cfx2_set_node_attrib_int( cfx2_Node* node, const char* name, long value )
