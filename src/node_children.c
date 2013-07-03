@@ -22,11 +22,27 @@
 */
 
 #include "list.h"
+#include "node.h"
 
 #include <confix2.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+static int belongs_to( const char* string, cfx2_Node* owner )
+{
+    return string >= owner->shared
+            && owner->shared != NULL
+            && string < owner->shared + ( ( SharedHeader_t* )owner->shared )->capacity;
+}
+
+static int free_from_possible_owner( char** string, cfx2_Node* owner )
+{
+    if ( belongs_to( *string, owner ) )
+        return cfx2_salloc( string, NULL, NULL, strlen( *string ) + 1, *string, 0 );
+    else
+        return 0;
+}
 
 libcfx2 int cfx2_add_child( cfx2_Node* parent, cfx2_Node* child )
 {
@@ -113,6 +129,24 @@ libcfx2 int cfx2_iterate_child_nodes( cfx2_Node* parent, cfx2_IterateCallback ca
 
 libcfx2 int cfx2_remove_child( cfx2_Node* parent, cfx2_Node* child )
 {
+    int rc;
+    size_t i;
+
+    if ( ( rc = free_from_possible_owner( &child->name, parent ) ) != 0 )
+        return rc;
+
+    if ( ( rc = free_from_possible_owner( &child->text, parent ) ) != 0 )
+        return rc;
+
+    for ( i = 0; i < cfx2_list_length( child->attributes ); i++ )
+    {
+        if ( ( rc = free_from_possible_owner( &cfx2_item( child->attributes, i, cfx2_Attrib ).name, parent ) ) != 0 )
+            return rc;
+
+        if ( ( rc = free_from_possible_owner( &cfx2_item( child->attributes, i, cfx2_Attrib ).value, parent ) ) != 0 )
+            return rc;
+    }
+
     if ( cfx2_list_remove_item( &parent->children, sizeof( cfx2_Node* ), &child ) )
         return cfx2_ok;
     else

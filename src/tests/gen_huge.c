@@ -68,7 +68,7 @@ int gen_huge(void)
     rc = cfx2_save_document(doc, huge_filename);
 
     if (rc != cfx2_ok)
-        tests_fail(("failed to save '%s': %i", huge_filename, rc))
+        tests_fail(("failed to save '%s': %s", huge_filename, cfx2_get_error_desc(rc)))
 
     tests_perf_end(&perf, "save document to disk");
 

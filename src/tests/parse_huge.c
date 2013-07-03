@@ -15,7 +15,7 @@ int parse_huge(void)
     rc = cfx2_read_file(&doc, huge_filename, NULL);
 
     if (rc != cfx2_ok)
-        tests_fail(("failed to load '%s': %i", huge_filename, rc))
+        tests_fail(("failed to load '%s': %s", huge_filename, cfx2_get_error_desc(rc)))
 
     tests_assert(cfx2_list_length(doc->children) == huge_node_count)
 

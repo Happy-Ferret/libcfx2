@@ -66,7 +66,7 @@ int queries1(void)
     rc = cfx2_read_file(&user_table, usertable_filename, NULL);
 
     if (rc != cfx2_ok)
-        tests_fail(("failed to load '%s': %i", usertable_filename, rc))
+        tests_fail(("failed to load '%s': %s", usertable_filename, cfx2_get_error_desc(rc)))
 
     tests_perf_end(&perf, "read user table");
 

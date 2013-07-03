@@ -30,7 +30,7 @@ int parseerror(void)
         if (rc == cfx2_ok)
             tests_fail(("loaded corrupted document '%s'", *p_filename))
         else if (rc != cfx2_syntax_error)
-            tests_fail(("error in parsing '%s': %i", *p_filename, rc))
+            tests_fail(("error in parsing '%s': %s", *p_filename, cfx2_get_error_desc(rc)))
     }
 
     return 0;

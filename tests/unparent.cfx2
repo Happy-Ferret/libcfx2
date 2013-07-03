@@ -1,0 +1,3 @@
+Node: 'value' (attrib1: 'value1', attrib2: 'value2')
+    Child1: 'text1'
+    Child2: 'text2'

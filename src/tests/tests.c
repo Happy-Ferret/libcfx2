@@ -36,6 +36,7 @@ int gen_huge(void);
 int parseerror(void);
 int parse_huge(void);
 int queries1(void);
+int unparent(void);
 
 static const tests_Case testcases[] =
 {
@@ -45,6 +46,7 @@ static const tests_Case testcases[] =
     entry(parseerror),
     entry(parse_huge),
     entry(queries1),
+    entry(unparent),
 
 #undef entry
 
