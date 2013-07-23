@@ -1,0 +1,10 @@
+{ Regression Test: this would cause memory corruption }
+
+Window: 'menu' (colour: '0.0, 0.0, 0.0, 0.6', pos: '0, 32', size: '176, 0', visible: 0)
+    Table (growableColumns: '0')
+        Button: 'menu.new' (label: 'New', iconAtlas: 'media/fileicons.png', iconIndex: 4)
+
+Panel: 'toolbar' (align: 'LEFT, VCENTER', colour: '0, 0, 0, 0', maxSize: '32, 256', padding: '0, 0')
+    StaticImage (path: 'media/gameui/vtoolbar.png', mapping: 'VSLICE')
+
+}

@@ -430,12 +430,12 @@ static int parse_document( ParseState* state, cfx2_Node** doc_ptr )
         if ( child )
             cfx2_add_child( *doc_ptr, child );
         else
-            return state->rc;
+            break;
     }
 
     save_buf_to_node( state, *doc_ptr );
 
-    return cfx2_ok;
+    return state->rc;
 }
 
 libcfx2 int cfx2_read( cfx2_Node** doc_ptr, cfx2_RdOpt* rd_opt )

@@ -7,6 +7,7 @@ static const char* filenames[] =
     "damaged2.cfx2",
     "damaged3.cfx2",
     "damaged4.cfx2",
+    "menu.cfx2",
     NULL
 };
 
