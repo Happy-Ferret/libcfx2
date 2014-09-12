@@ -32,11 +32,12 @@ extern "C"
 /* original ...     2.1.09 */
 /* new ...          25.1.10 */
 /* 0.9.x ...        30.4.13 */
+/* 0.9.2 ...        12.9.14 */
 
 #include <stddef.h>
 
-#define libcfx2_version             0x0091
-#define libcfx2_version_string      "0.9.1"
+#define libcfx2_version             0x0093
+#define libcfx2_version_string      "0.9.3-dev"
 #define libcfx2_version_full        "libcfx2 version " libcfx2_version_string
 
 #ifndef libcfx2
