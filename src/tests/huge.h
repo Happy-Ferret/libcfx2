@@ -4,12 +4,12 @@
 
 #ifndef tests_DEBUG
 #define huge_filename   "huge.cfx2"
-#define huge_node_count (200 * 1000)
+#define huge_node_count (2000 * 1000)
 #else
 /* debug mode is (particularly on Windows) AWFULLY slow */
 
 #define huge_filename   "huge_Debug.cfx2"
-#define huge_node_count (200)
+#define huge_node_count (8 * 1000)
 #endif
 
 #endif

@@ -27,91 +27,89 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int ensure_enough_space( Lexer* lexer, unsigned int i )
+static int read_char( Lexer* lex, char* c_out )
 {
-    if ( i + 2 > lexer->current_token_text_capacity )
+    if ( lex->queued_char )
     {
-        lexer->current_token_text_capacity = ( lexer->current_token_text_capacity != 0 )
-                ? lexer->current_token_text_capacity * 2 : 32;
-
-        lexer->current_token.text = ( char* )libcfx2_realloc( lexer->current_token.text,
-                lexer->current_token_text_capacity );
+        *c_out = lex->queued_char;
+        lex->queued_char = 0;
+        return 1;
     }
 
-    return lexer->current_token.text != NULL;
+    if ( lex->document_pos >= lex->document_len )
+        return 0;
+
+    *c_out = lex->document[lex->document_pos++];
+    return 1;
 }
 
-static int read_ident( Lexer* lexer, char next_char )
+static int read_ident( Lexer* lex, char next_char )
 {
-    unsigned i = 0;
+    lex->current_token.text = &lex->document[lex->document_pos];
 
     /* Continue until an non-ident character is met */
-    while ( is_ident_char( next_char ) )
+    while ( read_char( lex, &next_char ) )
     {
-        if ( !ensure_enough_space( lexer, i ) )
-            return cfx2_alloc_error;
-
-        lexer->current_token.text[i++] = next_char;
-
-        /* Read next char from the input */
-        if ( !lexer->rd_opt->stream_read( lexer->rd_opt, &next_char, 1 ) )
+        if ( !is_ident_char( next_char ) )
         {
-            next_char = 0;
+            lex->queued_char = next_char;
+            --lex->document_pos;
             break;
         }
     }
 
-    lexer->queued_char = next_char;
+    lex->document[lex->document_pos] = 0;
 
-    lexer->current_token.text[i] = 0;
+    ++lex->document_pos;
+
     return cfx2_ok;
 }
 
-static int read_string( Lexer* lexer, char terminating )
+static int read_string( Lexer* lex, char terminating )
 {
-    unsigned i = 0;
     char next_char;
+
+    lex->current_token.text = &lex->document[lex->document_pos];
 
     for ( ; ; )
     {
-        if ( !lexer->rd_opt->stream_read( lexer->rd_opt, &next_char, 1 ) )
+        if ( !read_char( lex, &next_char ) )
             return cfx2_EOF;
 
         if ( next_char == terminating )
+        {
+            /* don't include the terminator */
+            --lex->document_pos;
             break;
-
-        if ( !ensure_enough_space( lexer, i ) )
-            return cfx2_alloc_error;
+        }
 
         if ( next_char == '\\' )
-            if ( !lexer->rd_opt->stream_read( lexer->rd_opt, &next_char, 1 ) )
+            if ( !read_char( lex, &next_char ) )
                 return cfx2_EOF;
-
-        lexer->current_token.text[i++] = next_char;
     }
 
-    lexer->current_token.text[i] = 0;
+    lex->document[lex->document_pos] = 0;
+
+    /* ok to skip terminator now */
+    ++lex->document_pos;
+
     return cfx2_ok;
 }
 
-int create_lexer( Lexer** lexer_ptr, cfx2_RdOpt* rd_opt )
+int create_lexer( Lexer* lexer, cfx2_RdOpt* rd_opt )
 {
-    Lexer* lexer;
-
-    lexer = ( Lexer* )libcfx2_malloc( sizeof( Lexer ) );
-
-    if ( !lexer )
-        return cfx2_alloc_error;
-
     lexer->rd_opt = rd_opt;
+    lexer->document = rd_opt->document;
+    lexer->document_len = rd_opt->document_len;
+    lexer->document_pos = 0;
+
     lexer->line = 1;
     lexer->queued_char = 0;
+
     lexer->current_token.type = T_none;
     lexer->current_token.text = NULL;
     lexer->current_token_is_valid = 0;
-    lexer->current_token_text_capacity = 0;
 
-    *lexer_ptr = lexer;
     return cfx2_ok;
 }
 
@@ -136,12 +134,7 @@ int lexer_get_current( Lexer* lexer, Token** token_out )
 
     do
     {
-        if ( lexer->queued_char )
-        {
-            resolutor = lexer->queued_char;
-            lexer->queued_char = 0;
-        }
-        else if ( !lexer->rd_opt->stream_read( lexer->rd_opt, &resolutor, 1 ) )
+        if ( !read_char( lexer, &resolutor ) )
             return cfx2_EOF;
 
         if ( resolutor == '\n' )
@@ -162,7 +155,7 @@ int lexer_get_current( Lexer* lexer, Token** token_out )
         /* just look for '}' and don't forget to count lines */
         do
         {
-            if ( !lexer->rd_opt->stream_read( lexer->rd_opt, &resolutor, 1 ) )
+            if ( !read_char( lexer, &resolutor ) )
                 return cfx2_EOF;
 
             if ( resolutor == '\n' )
@@ -197,6 +190,7 @@ int lexer_get_current( Lexer* lexer, Token** token_out )
             /* Identifier */
             if ( is_ident_char( resolutor ) )
             {
+                --lexer->document_pos;
                 error_read = read_ident( lexer, resolutor );
 
                 if ( error_read )
@@ -272,20 +266,4 @@ int lexer_token_is( Lexer* lexer, int token_type )
     }
 
     return lexer->current_token.type == token_type;
-}
-
-void lexer_delete_token( Token* token )
-{
-}
-
-int delete_lexer( Lexer* lexer )
-{
-    if ( lexer->current_token.type != T_none )
-        lexer_delete_token( &lexer->current_token );
-
-    libcfx2_free( lexer->current_token.text );
-
-    lexer->rd_opt->stream_close( lexer->rd_opt );
-    libcfx2_free( lexer );
-    return cfx2_ok;
 }

@@ -126,10 +126,9 @@ typedef struct cfx2_WrOpt cfx2_WrOpt;
 
 struct cfx2_RdOpt
 {
-    void* stream_priv;
-    size_t ( *stream_read )( cfx2_RdOpt* rd_opt, char* buffer, size_t length );
-    void ( * stream_close )( cfx2_RdOpt* rd_opt );
-    
+    char* document;
+    size_t document_len;
+
     void* client_priv;
     int ( *on_error)( cfx2_RdOpt* rd_opt, int rc, int line, const char* desc );
     

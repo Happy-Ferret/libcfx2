@@ -441,7 +441,7 @@ static int parse_document( ParseState* state, cfx2_Node** doc_ptr )
 libcfx2 int cfx2_read( cfx2_Node** doc_ptr, cfx2_RdOpt* rd_opt )
 {
     ParseState state;
-    Lexer* lexer;
+    Lexer lexer;
     int lexer_error;
     unsigned int i;
 
@@ -449,13 +449,10 @@ libcfx2 int cfx2_read( cfx2_Node** doc_ptr, cfx2_RdOpt* rd_opt )
     lexer_error = create_lexer( &lexer, rd_opt );
 
     if ( lexer_error )
-    {
-        rd_opt->stream_close( rd_opt );
         return lexer_error;
-    }
 
     /* State initialization begins here */
-    state.lexer = lexer;
+    state.lexer = &lexer;
     state.rc = cfx2_ok;
     state.terminated = 0;
     
@@ -477,7 +474,7 @@ libcfx2 int cfx2_read( cfx2_Node** doc_ptr, cfx2_RdOpt* rd_opt )
     state.rc = parse_document( &state, doc_ptr );
 
     /* We don't need the input any more, so let's free it. */
-    delete_lexer( lexer );
+    free( rd_opt->document );
 
     release_bufs( &state );
 
@@ -497,7 +494,7 @@ libcfx2 int cfx2_read_file( cfx2_Node** doc_ptr, const char* filename, const cfx
 
     memset( &rd_opt, 0, sizeof( rd_opt ) );
     
-    rc = cfx2_buffer_stream_from_file( &rd_opt, filename );
+    rc = cfx2_buffer_input_from_file( &rd_opt, filename );
     
     rd_opt.client_priv = ( void* )filename;
     
@@ -529,7 +526,7 @@ libcfx2 int cfx2_read_from_string( cfx2_Node** doc_ptr, const char* string, cons
         rd_opt.flags = 0;
     }
     
-    rc = cfx2_buffer_stream_from_string( &rd_opt, string );
+    rc = cfx2_buffer_input_from_string( &rd_opt, string );
 
     return ( rc != 0 ) ? rc : cfx2_read( doc_ptr, &rd_opt );
 }

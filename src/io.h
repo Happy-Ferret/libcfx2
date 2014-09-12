@@ -27,14 +27,6 @@
 #include <confix2.h>
 #include <stdio.h>
 
-/* Buffer Input */
-typedef struct
-{
-    cfx2_uint8_t* data;
-    size_t length, pos;
-}
-cfx2_BufferStreamPriv;
-
 /* File Output */
 typedef struct
 {
@@ -52,8 +44,8 @@ typedef struct
 }
 cfx2_MemoryStreamPriv;
 
-int cfx2_buffer_stream_from_file( cfx2_RdOpt* rd_opt, const char* filename );
-int cfx2_buffer_stream_from_string( cfx2_RdOpt* rd_opt, const char* string );
+int cfx2_buffer_input_from_file( cfx2_RdOpt* rd_opt, const char* filename );
+int cfx2_buffer_input_from_string( cfx2_RdOpt* rd_opt, const char* string );
 
 int cfx2_file_stream( cfx2_WrOpt* rd_opt, const char* filename );
 int cfx2_memory_stream( cfx2_WrOpt* rd_opt, char** text, size_t* capacity, size_t* used );

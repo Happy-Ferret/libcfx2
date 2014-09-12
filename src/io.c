@@ -33,9 +33,7 @@
 /*  Buffer Input                                                              */
 /* -------------------------------------------------------------------------- */
 
-#define input ( ( cfx2_BufferStreamPriv* )rd_opt->stream_priv )
-
-static int BufferStream_on_error( cfx2_RdOpt* rd_opt, int error_code, int line, const char* desc )
+static int BufferInput_on_error( cfx2_RdOpt* rd_opt, int error_code, int line, const char* desc )
 {
     printf( "libcfx2 Error %i: '%s'\n", error_code, desc );
     printf( "  This error occured when parsing a cfx2 document.\n" );
@@ -52,42 +50,10 @@ static int BufferStream_on_error( cfx2_RdOpt* rd_opt, int error_code, int line, 
     return 0;
 }
 
-static void BufferStream_stream_close( cfx2_RdOpt* rd_opt )
-{
-    libcfx2_free( input->data );
-    libcfx2_free( input );
-}
-
-static size_t BufferStream_stream_read( cfx2_RdOpt* rd_opt, char* output, size_t length )
-{
-    if ( input->pos + length <= input->length )
-    {
-        if ( output )
-        {
-            if ( length == 1 )
-                *output = input->data[input->pos];
-            else
-                memcpy( output, input->data + input->pos, length );
-        }
-
-        input->pos += length;
-        return length;
-    }
-    else
-    {
-        if ( output )
-            memcpy( output, input->data + input->pos, input->length - input->pos );
-
-        input->pos = input->length;
-        return input->length - input->pos;
-    }
-}
-
 #undef input
 
-int cfx2_buffer_stream_from_file( cfx2_RdOpt* rd_opt, const char* filename )
+int cfx2_buffer_input_from_file( cfx2_RdOpt* rd_opt, const char* filename )
 {
-    cfx2_BufferStreamPriv* input;
     FILE* file;
 
     file = fopen( filename, "rb" );
@@ -95,69 +61,40 @@ int cfx2_buffer_stream_from_file( cfx2_RdOpt* rd_opt, const char* filename )
     if ( file == NULL )
         return cfx2_cant_open_file;
 
-    input = ( cfx2_BufferStreamPriv* )libcfx2_malloc( sizeof( cfx2_BufferStreamPriv ) );
-
-    if ( input == NULL )
-    {
-        fclose( file );
-        return cfx2_alloc_error;
-    }
-
     fseek( file, 0, SEEK_END );
-    input->length = ftell( file );
+    rd_opt->document_len = ftell( file );
     fseek( file, 0, SEEK_SET );
 
-    input->data = ( cfx2_uint8_t* )libcfx2_malloc( input->length + 1 );
+    rd_opt->document = ( cfx2_uint8_t* )libcfx2_malloc( rd_opt->document_len + 1 );
 
-    if ( !input->data )
+    if ( !rd_opt->document )
     {
         fclose( file );
-        libcfx2_free( input );
         return cfx2_alloc_error;
     }
 
-    input->length = fread( input->data, 1, input->length, file );
-    input->data[input->length] = 0;
+    rd_opt->document_len = fread( rd_opt->document, 1, rd_opt->document_len, file );
+    rd_opt->document[rd_opt->document_len] = 0;
     fclose( file );
 
-    input->pos = 0;
-    
     rd_opt->client_priv = NULL;
-    rd_opt->on_error = BufferStream_on_error;
-    rd_opt->stream_priv = input;
-    rd_opt->stream_read = BufferStream_stream_read;
-    rd_opt->stream_close = BufferStream_stream_close;
+    rd_opt->on_error = BufferInput_on_error;
 
     return cfx2_ok;
 }
 
-int cfx2_buffer_stream_from_string( cfx2_RdOpt* rd_opt, const char* string )
+int cfx2_buffer_input_from_string( cfx2_RdOpt* rd_opt, const char* string )
 {
-    cfx2_BufferStreamPriv* input;
+    rd_opt->document_len = strlen( string );
+    rd_opt->document = ( cfx2_uint8_t* )libcfx2_malloc( rd_opt->document_len + 1 );
 
-    input = ( cfx2_BufferStreamPriv* )libcfx2_malloc( sizeof( cfx2_BufferStreamPriv ) );
-
-    if ( !input )
+    if ( !rd_opt->document )
         return cfx2_alloc_error;
 
-    input->length = strlen( string );
-    input->data = ( cfx2_uint8_t* )libcfx2_malloc( input->length + 1 );
+    memcpy( rd_opt->document, string, rd_opt->document_len + 1 );
 
-    if ( !input->data )
-    {
-        libcfx2_free( input );
-        return cfx2_alloc_error;
-    }
+    rd_opt->on_error = BufferInput_on_error;
 
-    memcpy( input->data, string, input->length + 1 );
-
-    input->pos = 0;
-    
-    rd_opt->on_error = BufferStream_on_error;
-    rd_opt->stream_priv = input;
-    rd_opt->stream_read = BufferStream_stream_read;
-    rd_opt->stream_close = BufferStream_stream_close;
-    
     return cfx2_ok;
 }
 

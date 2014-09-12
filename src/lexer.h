@@ -41,7 +41,9 @@ typedef short TokenType;
 #define T_string    7
 #define T_equals    8
 
-#define is_ident_char( c ) ( isalnum( ( unsigned char ) c ) || (c) == '_' || (c) == '-' || (c) == '~' || (c) == '!' || (c) == '@' || (c) == '#' || (c) == '$' || (c) == '%' )
+#define is_ident_char( c ) ( isalnum( ( unsigned char ) c ) || (c) == '_'\
+        || (c) == '-' || (c) == '~' || (c) == '!' || (c) == '@' || (c) == '#'\
+        || (c) == '$' || (c) == '%' )
 
 /*
 
@@ -58,6 +60,7 @@ typedef struct
     TokenType type;
     unsigned short indent;
     int line;
+
     char* text;
 }
 Token;
@@ -65,21 +68,24 @@ Token;
 typedef struct
 {
     cfx2_RdOpt* rd_opt;
+
+    /* keep this here for better cache utilization */
+    char* document;
+    size_t document_len, document_pos;
+
     unsigned line;
     char queued_char;
 
     Token current_token;
 
     int current_token_is_valid;
-    size_t current_token_text_capacity;
 }
 Lexer;
 
-int create_lexer( Lexer** lexer_ptr, cfx2_RdOpt* rd_opt );
+int create_lexer( Lexer* lexer, cfx2_RdOpt* rd_opt );
 int lexer_read( Lexer* lexer, Token** token_out );
 int lexer_get_current( Lexer* lexer, Token** token_out );
 int lexer_token_is( Lexer* lexer, int token_type );
 void lexer_delete_token( Token* );
-int delete_lexer( Lexer* lexer );
 
 #endif
