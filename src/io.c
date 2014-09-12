@@ -65,7 +65,7 @@ int cfx2_buffer_input_from_file( cfx2_RdOpt* rd_opt, const char* filename )
     rd_opt->document_len = ftell( file );
     fseek( file, 0, SEEK_SET );
 
-    rd_opt->document = ( cfx2_uint8_t* )libcfx2_malloc( rd_opt->document_len + 1 );
+    rd_opt->document = ( char* )libcfx2_malloc( rd_opt->document_len + 1 );
 
     if ( !rd_opt->document )
     {
@@ -86,7 +86,7 @@ int cfx2_buffer_input_from_file( cfx2_RdOpt* rd_opt, const char* filename )
 int cfx2_buffer_input_from_string( cfx2_RdOpt* rd_opt, const char* string )
 {
     rd_opt->document_len = strlen( string );
-    rd_opt->document = ( cfx2_uint8_t* )libcfx2_malloc( rd_opt->document_len + 1 );
+    rd_opt->document = ( char* )libcfx2_malloc( rd_opt->document_len + 1 );
 
     if ( !rd_opt->document )
         return cfx2_alloc_error;
